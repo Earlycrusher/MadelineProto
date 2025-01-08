@@ -321,6 +321,32 @@ final class DataCenterConnection implements JsonSerializable
     {
         return $this->permAuthKey !== null && $this->permAuthKey->hasAuthKey();
     }
+    public function swapQueue(): void
+    {
+        if ($this->tempAuthKey === null) {
+            foreach ($this->connections as $connection) {
+                $connection->pendingOutgoing = $connection->unencryptedPendingOutgoing;
+            }
+            return;
+        }
+
+        $allOk = $this->tempAuthKey->isInited()
+            && !(
+                $this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
+                && !$this->isAuthorized()
+                && !$this->API->isCDN($this->datacenter)
+            );
+
+        if ($allOk) {
+            foreach ($this->connections as $connection) {
+                $connection->pendingOutgoing = $connection->authPendingOutgoing;
+            }
+        } else {
+            foreach ($this->connections as $connection) {
+                $connection->pendingOutgoing = $connection->mainPendingOutgoing;
+            }
+        }
+    }
     /**
      * Set temporary authorization key.
      *
@@ -329,6 +355,7 @@ final class DataCenterConnection implements JsonSerializable
     public function setTempAuthKey(?TempAuthKey $key): void
     {
         $this->tempAuthKey = $key;
+        $this->swapQueue();
     }
     /**
      * Set permanent authorization key.

@@ -85,14 +85,27 @@ trait Session
     /**
      * Pending outgoing messages.
      *
-     * @var array<MTProtoOutgoingMessage>
+     * @var SplQueue<MTProtoOutgoingMessage>
      */
-    public array $pendingOutgoing = [];
+    public SplQueue $pendingOutgoing;
     /**
-     * Pending outgoing key.
+     * Pending outgoing messages.
      *
+     * @var SplQueue<MTProtoOutgoingMessage>
      */
-    public int $pendingOutgoingKey = 0;
+    public SplQueue $unencryptedPendingOutgoing;
+    /**
+     * Pending outgoing messages.
+     *
+     * @var SplQueue<MTProtoOutgoingMessage>
+     */
+    public SplQueue $authPendingOutgoing;
+    /**
+     * Pending outgoing messages.
+     *
+     * @var SplQueue<MTProtoOutgoingMessage>
+     */
+    public SplQueue $mainPendingOutgoing;
     /**
      * Time delta with server.
      *
