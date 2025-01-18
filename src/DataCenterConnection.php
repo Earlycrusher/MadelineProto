@@ -482,8 +482,7 @@ final class DataCenterConnection implements JsonSerializable
         $list = '';
         foreach ($backup as $k => $message) {
             if ($message->constructor === 'msgs_state_req'
-                || $message->constructor === 'ping_delay_disconnect'
-                || $message->unencrypted) {
+                || $message->constructor === 'ping_delay_disconnect') {
                 unset($backup[$k]);
                 continue;
             }

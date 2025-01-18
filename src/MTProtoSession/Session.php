@@ -203,6 +203,8 @@ trait Session
                 10000_000_000,
             ]
         );
+        $this->mainPendingOutgoing ??= new LinkedList;
+        $this->unencryptedPendingOutgoing ??= new LinkedList;
         if ($this->session_id === null) {
             $this->resetSession("creating initial session");
         }
@@ -215,7 +217,16 @@ trait Session
      */
     public function backupSession(): array
     {
-        $pending = array_values($this->pendingOutgoing);
+        $pending = [];
+        $message = $this->mainPendingOutgoing;
+        while (true) {
+            $message = $message->prev;
+            if ($message === $this->mainPendingOutgoing) {
+                break;
+            }
+            \assert($message instanceof MTProtoOutgoingMessage);
+            $pending []= $message;
+        }
         return array_merge($pending, $this->new_outgoing, $this->unencrypted_new_outgoing);
     }
 }

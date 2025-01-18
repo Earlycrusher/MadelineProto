@@ -75,7 +75,7 @@ final class WriteLoop extends Loop
                 $this->API->logger("Exiting $this because connection is old");
                 return self::STOP;
             }
-            if (!$this->connection->pendingOutgoing && !$first) {
+            if ($this->connection->mainPendingOutgoing === $this->connection->mainPendingOutgoing->prev && !$first) {
                 $this->API->logger("No messages, pausing in $this...", Logger::ULTRA_VERBOSE);
                 return self::LONG_POLL_TIMEOUT;
             }
@@ -225,7 +225,7 @@ final class WriteLoop extends Loop
             }
 
             $messages = [];
-            $keys = [];
+            $MTmessages = [];
 
             $total_length = 0;
             $count = 0;
@@ -354,8 +354,8 @@ final class WriteLoop extends Loop
                 $count++;
                 $total_length += $actual_length;
                 $MTmessage['bytes'] = $body_length;
-                $messages[] = $MTmessage;
-                $keys[$k] = $message;
+                $MTmessages[] = $MTmessage;
+                $messages[] = $message;
 
                 $message->setSeqNo($MTmessage['seqno'])
                         ->setMsgId($MTmessage['msg_id']);
@@ -367,7 +367,7 @@ final class WriteLoop extends Loop
                 $this->API->logger('Adding msgs_ack', Logger::ULTRA_VERBOSE);
 
                 $body = $this->API->getTL()->serializeObject(['type' => ''], ['_' => 'msgs_ack', 'msg_ids' => $acks], 'msgs_ack');
-                $messages []= [
+                $MTmessages[]= [
                     '_' => 'MTmessage',
                     'msg_id' => $this->connection->msgIdHandler->generateMessageId(),
                     'body' => $body,
@@ -380,7 +380,7 @@ final class WriteLoop extends Loop
             if ($this->connection->isHttp()) {
                 $this->API->logger('Adding http_wait', Logger::ULTRA_VERBOSE);
                 $body = $this->API->getTL()->serializeObject(['type' => ''], ['_' => 'http_wait', 'max_wait' => 30000, 'wait_after' => 0, 'max_delay' => 0], 'http_wait');
-                $messages []= [
+                $MTmessages []= [
                     '_' => 'MTmessage',
                     'msg_id' => $this->connection->msgIdHandler->generateMessageId(),
                     'body' => $body,
@@ -394,23 +394,22 @@ final class WriteLoop extends Loop
             if ($count > 1 || $has_seq) {
                 $this->API->logger("Wrapping in msg_container ({$count} messages of total size {$total_length}) as encrypted message for DC {$this->datacenter}", Logger::ULTRA_VERBOSE);
                 $message_id = $this->connection->msgIdHandler->generateMessageId();
-                $this->connection->pendingOutgoing[$this->connection->pendingOutgoingKey] = $ct = new Container($this->connection, $keys);
+                $messages []= $ct = new Container($this->connection, $messages);
                 $this->connection->outgoingCtr?->inc();
-                $keys[$this->connection->pendingOutgoingKey++] = $ct;
-                $message_data = $this->API->getTL()->serializeObject(['type' => ''], ['_' => 'msg_container', 'messages' => $messages], 'container');
+                $message_data = $this->API->getTL()->serializeObject(['type' => ''], ['_' => 'msg_container', 'messages' => $MTmessages], 'container');
                 $message_data_length = \strlen($message_data);
                 $seq_no = $this->connection->generateOutSeqNo(false);
             } elseif ($count) {
-                $message = $messages[0];
+                $message = $MTmessages[0];
                 $message_data = $message['body'];
                 $message_data_length = $message['bytes'];
                 $message_id = $message['msg_id'];
                 $seq_no = $message['seqno'];
             } else {
-                $this->API->logger("NO MESSAGE SENT in $this, pending ".implode(', ', array_map('strval', $this->connection->pendingOutgoing)), Logger::WARNING);
+                $this->API->logger("NO MESSAGE SENT in $this!", Logger::WARNING);
                 return true;
             }
-            unset($messages);
+            unset($MTmessages);
             $plaintext = $this->shared->getTempAuthKey()->getServerSalt().$this->connection->session_id.Tools::packSignedLong($message_id).pack('VV', $seq_no, $message_data_length).$message_data;
             $padding = Tools::posmod(-\strlen($plaintext), 16);
             if ($padding < 12) {
@@ -432,11 +431,11 @@ final class WriteLoop extends Loop
                 $this->connection->ack_queue = \array_slice($this->connection->ack_queue, $ackCount);
             }
 
-            foreach ($keys as $key => $message) {
+            foreach ($messages as $message) {
                 $message->sent();
             }
-            $this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
-        } while ($this->connection->pendingOutgoing && !$skipped);
+            //$this->connection->pendingOutgoingGauge?->set(\count($this->connection->pendingOutgoing));
+        } while ($this->connection->mainPendingOutgoing->prev !== $this->connection->mainPendingOutgoing && !$skipped);
         return $skipped;
     }
     /**
