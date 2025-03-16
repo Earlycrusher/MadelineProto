@@ -160,7 +160,8 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         });
     }
 
-    public function __debugInfo(): array {
+    public function __debugInfo(): array
+    {
         if (!isset($this->next)) {
             $next = null;
         } elseif ($this->next instanceof MTProtoOutgoingMessage) {
@@ -206,8 +207,10 @@ class MTProtoOutgoingMessage extends MTProtoMessage
             ]);
         }
         $this->state |= self::STATE_SENT;
-        $this->next->prev = $this->prev;
-        $this->prev->next = $this->next;
+        if (!$this instanceof Container) {
+            $this->next->prev = $this->prev;
+            $this->prev->next = $this->next;
+        }
         $this->sent = hrtime(true);
         if ($this->contentRelated) {
             $this->checkTimer = EventLoop::delay(
