@@ -1164,7 +1164,9 @@ trait FilesAbstraction
         unset($p);
 
         $file = $fileFuture->await();
-        return (new finfo())->buffer($buff, FILEINFO_MIME_TYPE);
+        $mime = (new finfo())->buffer($buff, FILEINFO_MIME_TYPE);
+        $file['mime_type'] = $mime;
+        return $mime;
     }
     private function extractAudioInfo(bool $secret, Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream &$file, ?string $fileName, ?callable $callback, ?Cancellation $cancellation, ?string &$mimeType, array &$attributes, mixed &$thumb): void
     {
@@ -1246,6 +1248,7 @@ trait FilesAbstraction
         }
 
         $file = $fileFuture->await();
+        $file['mime_type'] = $mimeType;
     }
 
     private function extractVideoInfo(bool $secret, string $thumbSeek, Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream &$file, ?string $fileName, ?callable $callback, ?Cancellation $cancellation, ?string &$mimeType, array &$attributes, mixed &$thumb): void
@@ -1325,5 +1328,6 @@ trait FilesAbstraction
         }
 
         $file = $fileFuture->await();
+        $file['mime_type'] = $mimeType;
     }
 }
