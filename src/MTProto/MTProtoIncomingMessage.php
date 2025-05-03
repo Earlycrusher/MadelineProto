@@ -88,6 +88,7 @@ final class MTProtoIncomingMessage extends MTProtoMessage
     /**
      * Get my message ID.
      */
+    #[\Override]
     public function getMsgId(): int
     {
         \assert($this->msgId !== null);
