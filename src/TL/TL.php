@@ -1068,7 +1068,9 @@ final class TL implements TLInterface
         }
 
         if (isset($x['channel_id'])) {
-            $x['channel_id'] = Magic::ZERO_CHANNEL_ID - $x['channel_id'];
+            $x['channel_id'] = $x['channel_id'] > Magic::MAX_CHANNEL_ID
+                ? DialogId::fromMiniforumId($x['channel_id'])
+                : DialogId::fromSupergroupOrChannelId($x['channel_id']);
         } elseif (isset($x['random_bytes'])) {
             if (\strlen((string) $x['random_bytes']) < 15) {
                 throw new SecurityException('Random_bytes is too small!');
@@ -1078,7 +1080,9 @@ final class TL implements TLInterface
             || $x['_'] === 'channelForbidden'
             || $x['_'] === 'channelFull'
         ) {
-            $x['id'] = DialogId::fromSupergroupOrChannelId($x['id']);
+            $x['id'] = $x['id'] > Magic::MAX_CHANNEL_ID
+                ? DialogId::fromMiniforumId($x['id'])
+                : DialogId::fromSupergroupOrChannelId($x['id']);
         } elseif ($x['_'] === 'chat'
             || $x['_'] === 'chatForbidden'
             || $x['_'] === 'chatFull'

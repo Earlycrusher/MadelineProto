@@ -1019,6 +1019,7 @@ trait UpdateHandler
                 $new[$param['name']] = false;
             }
         }
+        $message = $new;
     }
     /**
      * @param array $updates        Updates
@@ -1097,7 +1098,7 @@ trait UpdateHandler
     public function subscribeToUpdates(mixed $channel): bool
     {
         $channelId = $this->getId($channel);
-        if (!DialogId::isSupergroupOrChannel($channelId)) {
+        if (!DialogId::isSupergroupOrChannelOrMiniforum($channelId)) {
             throw new Exception("You can only subscribe to channels or supergroups!");
         }
         if (!$this->getChannelStates()->has($channelId)) {
