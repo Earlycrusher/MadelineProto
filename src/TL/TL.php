@@ -1078,7 +1078,17 @@ final class TL implements TLInterface
             || $x['_'] === 'channelForbidden'
             || $x['_'] === 'channelFull'
         ) {
-            $x['id'] = DialogId::fromSupergroupOrChannelId($x['id']);
+            try{
+                $x['id'] = DialogId::fromSupergroupOrChannelId($x['id']);
+            } catch (\Throwable $e) {
+                if (str_starts_with((string)$x['id'], '107')) {
+                    $x['id'] = (int)(preg_replace('/^(107)/', '-100', (string)$x['id']));
+                } else {
+                    Logger::log((string)$e, Logger::ERROR);
+                    Logger::log($x, Logger::ERROR);
+                    throw $e;
+                }
+            }
         } elseif ($x['_'] === 'chat'
             || $x['_'] === 'chatForbidden'
             || $x['_'] === 'chatFull'
