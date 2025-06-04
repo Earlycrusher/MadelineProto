@@ -1068,7 +1068,9 @@ final class TL implements TLInterface
         }
 
         if (isset($x['channel_id'])) {
-            $x['channel_id'] = Magic::ZERO_CHANNEL_ID - $x['channel_id'];
+            $x['channel_id'] = $x['channel_id'] > Magic::MAX_CHANNEL_ID
+                ? DialogId::fromMiniforumId($x['channel_id'])
+                : DialogId::fromSupergroupOrChannelId($x['channel_id']);
         } elseif (isset($x['random_bytes'])) {
             if (\strlen((string) $x['random_bytes']) < 15) {
                 throw new SecurityException('Random_bytes is too small!');
@@ -1078,17 +1080,9 @@ final class TL implements TLInterface
             || $x['_'] === 'channelForbidden'
             || $x['_'] === 'channelFull'
         ) {
-            try{
-                $x['id'] = DialogId::fromSupergroupOrChannelId($x['id']);
-            } catch (\Throwable $e) {
-                if (str_starts_with((string)$x['id'], '107')) {
-                    $x['id'] = (int)(preg_replace('/^(107)/', '-100', (string)$x['id']));
-                } else {
-                    Logger::log((string)$e, Logger::ERROR);
-                    Logger::log($x, Logger::ERROR);
-                    throw $e;
-                }
-            }
+            $x['id'] = $x['id'] > Magic::MAX_CHANNEL_ID
+                ? DialogId::fromMiniforumId($x['id'])
+                : DialogId::fromSupergroupOrChannelId($x['id']);
         } elseif ($x['_'] === 'chat'
             || $x['_'] === 'chatForbidden'
             || $x['_'] === 'chatFull'
@@ -1126,13 +1120,7 @@ final class TL implements TLInterface
             }
         }
         /** @psalm-suppress InvalidArgument */
-        if ($x['_'] === 'message' && isset($x['reply_markup']['rows'])) {
-            foreach ($x['reply_markup']['rows'] as $key => $row) {
-                foreach ($row['buttons'] as $bkey => $button) {
-                    $x['reply_markup']['rows'][$key]['buttons'][$bkey] = new Types\Button($this->API, $x, $button);
-                }
-            }
-        } elseif ($x['_'] === 'peerUser') {
+        if ($x['_'] === 'peerUser') {
             $x = $x['user_id'];
         } elseif ($x['_'] === 'peerChat') {
             $x = $x['chat_id'];
