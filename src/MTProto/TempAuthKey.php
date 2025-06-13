@@ -55,6 +55,19 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
     {
     }
     /**
+     * Only used on initialization
+     */
+    public function getState(): ConnectionState {
+        if ($this->authKey === null) {
+            return ConnectionState::UNENCRYPTED;
+        }
+        if ($this->inited && $this->isAuthorized()) {
+            return ConnectionState::ENCRYPTED;
+        }
+        return ConnectionState::ENCRYPTED_NOT_READY;
+
+    }
+    /**
      * Init or deinit connection for auth key.
      *
      * @param boolean $init Init or deinit
@@ -62,7 +75,7 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
     public function init(bool $init = true): void
     {
         $this->inited = $init;
-        $this->connectionState->publish($init ? ConnectionState::ENCRYPTED_INITED : ConnectionState::ENCRYPTED_UNINITED);
+        $this->connectionState->publish($this->getState());
     }
     /**
      * Check if connection is inited for auth key.
@@ -75,16 +88,11 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
      * Bind auth key.
      *
      * @param PermAuthKey|null $bound Permanent auth key
-     * @param bool             $pfs   Whether to bind using PFS
      */
-    public function bind(?PermAuthKey $bound, bool $pfs = true): void
+    public function bind(?PermAuthKey $bound): void
     {
         $this->bound = $bound;
-        if (!$pfs) {
-            foreach (['authKey', 'id', 'serverSalt'] as $key) {
-                $this->{$key} =& $bound->{$key};
-            }
-        }
+        $this->connectionState->publish($this->getState());
     }
     /**
      * Check if auth key is bound.
@@ -109,6 +117,7 @@ final class TempAuthKey extends AuthKey implements JsonSerializable
     #[\Override]
     public function authorized(bool $authorized): void
     {
+        $this->connectionState->publish($this->getState());
         $this->bound->authorized($authorized);
     }
     /**

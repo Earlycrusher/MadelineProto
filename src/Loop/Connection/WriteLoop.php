@@ -65,7 +65,6 @@ final class WriteLoop extends Loop implements Subscriber
     private int $resendTimeout;
 
     private bool $encrypted;
-    private bool $uninited;
     private LinkedList $queue;
     private ?ConnectionState $pendingState = null;
 
@@ -104,11 +103,10 @@ final class WriteLoop extends Loop implements Subscriber
             }
             if ($this->pendingState !== null) {
                 $this->encrypted = $this->pendingState !== ConnectionState::UNENCRYPTED;
-                $this->uninited = $this->pendingState !== ConnectionState::ENCRYPTED_UNINITED;
                 $this->queue = match ($this->pendingState) {
                     ConnectionState::UNENCRYPTED => $this->connection->unencryptedPendingOutgoing,
-                    ConnectionState::ENCRYPTED_UNINITED => $this->connection->uninitedPendingOutgoing,
-                    ConnectionState::ENCRYPTED_INITED => $this->connection->mainPendingOutgoing,
+                    ConnectionState::ENCRYPTED_NOT_READY => $this->connection->uninitedPendingOutgoing,
+                    ConnectionState::ENCRYPTED => $this->connection->mainPendingOutgoing,
                 };
                 $this->pendingState = null;
             }
@@ -178,7 +176,7 @@ final class WriteLoop extends Loop implements Subscriber
             if ($check = $this->connection->check_queue) {
                 $this->connection->check_queue = [];
                 $deferred = new DeferredFuture();
-                $deferred->getFuture()->catch(function (): void {
+                $deferred->getFuture()->catch(function (\Throwable $e): void {
                     $this->API->logger("Got exception in check loop for DC {$this->datacenter}");
                     $this->API->logger((string) $e);
                 });
@@ -266,11 +264,6 @@ final class WriteLoop extends Loop implements Subscriber
             $message = $this->queue;
             while (($message = $message->prev) instanceof MTProtoOutgoingMessage) {
                 $constructor = $message->constructor;
-                if ($this->shared->getGenericSettings()->getAuth()->getPfs() && !$this->shared->isBound() && !$this->connection->isCDN() && $message->isMethod && $constructor !== 'auth.bindTempAuthKey') {
-                    $this->API->logger("Skipping $message due to unbound keys in DC $this->datacenter");
-                    $skipped = true;
-                    continue;
-                }
                 if ($constructor === 'msgs_state_req') {
                     if ($has_state) {
                         $this->API->logger("Already have a state request queued for the current container in DC {$this->datacenter}");
@@ -303,64 +296,7 @@ final class WriteLoop extends Loop implements Subscriber
                     'body' => $message->getSerializedBody(),
                     'seqno' => $message->getSeqNo() ?? $this->connection->generateOutSeqNo($message->contentRelated),
                 ];
-                if ($message->isMethod && $constructor !== 'auth.bindTempAuthKey') {
-                    if ($this->uninited) {
-                        Assert::true($constructor === 'help.getConfig' || $constructor === 'upload.getCdnFile');
-                            $this->API->logger(sprintf('Writing client info (also executing %s)...', $constructor), Logger::NOTICE);
-                            $MTmessage['body'] = ($this->API->getTL()->serializeMethod('invokeWithLayer', [
-                                'layer' => $this->API->settings->getSchema()->getLayer(),
-                                'query' => $this->API->getTL()->serializeMethod(
-                                    'initConnection',
-                                    [
-                                        'api_id' => $this->API->settings->getAppInfo()->getApiId(),
-                                        'api_hash' => $this->API->settings->getAppInfo()->getApiHash(),
-                                        'device_model' => !$this->connection->isCDN() ? $this->API->settings->getAppInfo()->getDeviceModel() : 'n/a',
-                                        'system_version' => !$this->connection->isCDN() ? $this->API->settings->getAppInfo()->getSystemVersion() : 'n/a',
-                                        'app_version' => $this->API->settings->getAppInfo()->getAppVersion(),
-                                        'system_lang_code' => $this->API->settings->getAppInfo()->getSystemLangCode(),
-                                        'lang_code' => $this->API->settings->getAppInfo()->getLangCode(),
-                                        'lang_pack' => $this->API->settings->getAppInfo()->getLangPack(),
-                                        'proxy' => $this->connection->getInputClientProxy(),
-                                        'query' => $MTmessage['body'],
-                                    ]
-                                ),
-                            ]));
-                    } elseif ($this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
-                        && !$this->shared->isAuthorized()
-                        && $constructor !== 'auth.importAuthorization'
-                        && !$this->connection->isCDN()
-                    ) {
-                        $this->API->logger("Skipping $message due to unimported auth in connection in DC $this->datacenter");
-                        $skipped = true;
-                        continue;
-                    } elseif (($prev = $message->previousQueuedMessage)
-                        && !$prev->hasReply()
-                    ) {
-                        $prevId = $prev->getMsgId();
-                        if (!$prevId) {
-                            $prev->getResultPromise()->finally(fn () => $this->resume(true));
-                            $this->API->logger("Skipping $message due pending local queue in DC $this->datacenter");
-                            $skipped = true;
-                            continue;
-                        }
-                        $MTmessage['body'] = $this->API->getTL()->serializeMethod(
-                            'invokeAfterMsg',
-                            [
-                                'msg_id' => $prevId,
-                                'query' => $MTmessage['body'],
-                            ]
-                        );
-                    }
-                    // TODO
-                    /*
-                    if ($this->API->settings['requests']['gzip_encode_if_gt'] !== -1 && ($l = strlen($MTmessage['body'])) > $this->API->settings['requests']['gzip_encode_if_gt']) {
-                        if (($g = strlen($gzipped = gzencode($MTmessage['body']))) < $l) {
-                            $MTmessage['body'] = $this->API->getTL()->serializeObject(['type' => ''], ['_' => 'gzip_packed', 'packed_data' => $gzipped], 'gzipped data');
-                            $this->API->logger('Using GZIP compression for ' . $constructor . ', saved ' . ($l - $g) . ' bytes of data, reduced call size by ' . $g * 100 / $l . '%', \danog\MadelineProto\Logger::ULTRA_VERBOSE);
-                        }
-                        unset($gzipped);
-                    }*/
-                }
+
                 $body_length = \strlen($MTmessage['body']);
                 $actual_length = $body_length + 32;
                 if ($total_length && $total_length + $actual_length > 32760) {
@@ -410,7 +346,7 @@ final class WriteLoop extends Loop implements Subscriber
             if ($count > 1 || $has_seq) {
                 $this->API->logger("Wrapping in msg_container ({$count} messages of total size {$total_length}) as encrypted message for DC {$this->datacenter}", Logger::ULTRA_VERBOSE);
                 $message_id = $this->connection->msgIdHandler->generateMessageId();
-                $messages []= $ct = new Container($this->connection, $messages);
+                $messages []= new Container($this->connection, $messages);
                 $this->connection->outgoingCtr?->inc();
                 $message_data = $this->API->getTL()->serializeObject(['type' => ''], ['_' => 'msg_container', 'messages' => $MTmessages], 'container');
                 $message_data_length = \strlen($message_data);

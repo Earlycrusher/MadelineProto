@@ -258,7 +258,8 @@ final class Connection
         return $this->API->isCDN($this->datacenter);
     }
     /** @return Publisher<ConnectionState> */
-    public function getState(): Publisher {
+    public function getState(): Publisher
+    {
         return $this->connectionState;
     }
 
@@ -573,6 +574,8 @@ final class Connection
         $this->connect();
         if ($message->unencrypted) {
             $this->unencryptedPendingOutgoing->enqueue($message);
+        } elseif ($message->authMethod) {
+            $this->uninitedPendingOutgoing->enqueue($message);
         } else {
             $this->mainPendingOutgoing->enqueue($message);
         }

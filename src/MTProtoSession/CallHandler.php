@@ -74,13 +74,6 @@ trait CallHandler
             $defer = $d;
             return;
         }
-        $prev = $request->previousQueuedMessage;
-        if ($prev && !$prev->hasReply()) {
-            $prev->getResultPromise()->finally(
-                fn () => $this->methodRecall($request, $this->datacenter, $defer)
-            );
-            return;
-        }
         if ($defer) {
             $defer->finally(
                 fn () => $this->methodRecall($request, $this->datacenter)
@@ -110,9 +103,32 @@ trait CallHandler
      */
     public function methodCallAsyncRead(string $method, array $args)
     {
+        if (isset($args['message']) && \is_string($args['message']) && mb_strlen($args['message'], 'UTF-8') > ($this->API->getConfig())['message_length_max'] && mb_strlen($this->API->parseMode($args)['message'], 'UTF-8') > ($this->API->getConfig())['message_length_max']) {
+            $peer = $args['peer'];
+            $args = $this->API->splitToChunks($args);
+            $promises = [];
+            $queueId = $method.' '.$this->API->getId($peer);
+
+            $promises = [];
+            foreach ($args as $sub) {
+                $sub['queueId'] = $queueId;
+                $sub = $this->API->botAPIToMTProto($sub);
+                $this->methodAbstractions($method, $sub);
+                $promises[] = async($this->methodCallAsyncRead(...), $method, $sub);
+            }
+
+            return await($promises);
+        }
+
+        $queueId = $args['queueId'] ?? null;
+        if ($queueId !== null) {
+            $_ = $this->abstractionQueueMutex->acquire($queueId);
+        }
+
         $readFuture = $this->methodCallAsyncWrite($method, $args);
         return $readFuture->await();
     }
+
     private LocalKeyedMutex $abstractionQueueMutex;
     private ?float $drop = null;
     /**
@@ -132,41 +148,6 @@ trait CallHandler
         if ($file && !$this->isMedia() && $this->API->datacenter->has(-$this->datacenter)) {
             $this->API->logger('Using media DC');
             return $this->API->methodCallAsyncWrite($method, $args, -$this->datacenter);
-        }
-
-        if (isset($args['message']) && \is_string($args['message']) && mb_strlen($args['message'], 'UTF-8') > ($this->API->getConfig())['message_length_max'] && mb_strlen($this->API->parseMode($args)['message'], 'UTF-8') > ($this->API->getConfig())['message_length_max']) {
-            $peer = $args['peer'];
-            $args = $this->API->splitToChunks($args);
-            $promises = [];
-            $queueId = $method.' '.$this->API->getId($peer);
-
-            $promises = [];
-            foreach ($args as $sub) {
-                $sub['queueId'] = $queueId;
-                $sub = $this->API->botAPIToMTProto($sub);
-                $this->methodAbstractions($method, $sub);
-                $promises[] = async($this->methodCallAsyncWrite(...), $method, $sub);
-            }
-
-            return new WrappedFuture(async(static fn () => array_map(
-                static fn (WrappedFuture $f) => $f->await(),
-                await($promises)
-            )));
-        }
-
-        $queueId = $args['queueId'] ?? null;
-        $prev = null;
-        $lock = null;
-        if ($queueId !== null) {
-            $lock = $this->abstractionQueueMutex->acquire($queueId);
-            if (isset($this->callQueue[$queueId])
-                && !($prev = $this->callQueue[$queueId])->hasReply()
-            ) {
-                $this->API->logger("$method to queue with ID $queueId", Logger::ULTRA_VERBOSE);
-            } else {
-                $prev = null;
-                $this->API->logger("$method is the first in the queue with ID $queueId", Logger::ULTRA_VERBOSE);
-            }
         }
 
         $args = $this->API->botAPIToMTProto($args);
@@ -196,21 +177,17 @@ trait CallHandler
             constructor: $method,
             type: $methodInfo['type'],
             subtype: $methodInfo['subtype'] ?? null,
+            authMethod: isset($args['authMethod']),
             isMethod: true,
             unencrypted: !$encrypted,
             userRelated: isset($args['userRelated']),
             fileRelated: $file,
-            previousQueuedMessage: $prev,
             floodWaitLimit: $args['floodWaitLimit'] ?? null,
             resultDeferred: $response,
             cancellation: $cancellation,
             takeoutId: $args['takeoutId'] ?? null,
             businessConnectionId: $args['businessConnectionId'] ?? null,
         );
-        if ($queueId !== null) {
-            $this->callQueue[$queueId] = $message;
-            $lock->release();
-        }
         if (isset($args['madelineMsgId'])) {
             $message->setMsgId($args['madelineMsgId']);
         }

@@ -110,6 +110,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         public readonly string $type,
         public readonly bool $isMethod,
         public readonly bool $unencrypted,
+        public readonly bool $authMethod,
         /**
          * Whether this message is related to a user, as in getting a successful reply means we have auth.
          */
@@ -120,10 +121,6 @@ class MTProtoOutgoingMessage extends MTProtoMessage
          * Whether this message is related to a file upload, as in getting a redirect should redirect to a media server.
          */
         public readonly bool $fileRelated = false,
-        /**
-         * Previous queued message.
-         */
-        public readonly ?self $previousQueuedMessage = null,
         /**
          * Custom flood wait limit for this message.
          */
@@ -233,17 +230,15 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         $settings = $shared->getSettings();
         $global = $shared->getGenericSettings();
         $timeout = (float) $settings->getTimeout();
-        $pfs = $global->getAuth()->getPfs();
         $unencrypted = !$shared->hasTempAuthKey();
         $notBound = !$shared->isBound();
-        $pfsNotBound = $pfs && $notBound;
         $this->checkTimer = EventLoop::delay(
             $timeout,
             $this->check(...)
         );
 
         if ($this->unencrypted === $unencrypted) {
-            if (!$unencrypted && $pfsNotBound && $this->constructor !== 'auth.bindTempAuthKey') {
+            if (!$unencrypted && $notBound && $this->constructor !== 'auth.bindTempAuthKey') {
                 return;
             }
             \assert($this->msgId !== null);

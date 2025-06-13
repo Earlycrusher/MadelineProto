@@ -316,16 +316,6 @@ trait ResponseHandler
             case 500:
             case -500:
             case -503:
-                if ($request->previousQueuedMessage !== null &&
-                    (
-                        $response['error_message'] === 'MSG_WAIT_FAILED'
-                        || $response['error_message'] === 'MSG_WAIT_TIMEOUT'
-                    )
-                ) {
-                    $this->API->logger("Resending $request due to {$response['error_message']}");
-                    $this->methodRecall($request, $this->datacenter);
-                    return null;
-                }
                 if ((($response['error_code'] === -503 || $response['error_message'] === '-503') && !\in_array($request->constructor, ['messages.getBotCallbackAnswer', 'messages.getInlineBotResults'], true))
                     || (\in_array($response['error_message'], ['MSGID_DECREASE_RETRY', 'HISTORY_GET_FAILED', 'RPC_CONNECT_FAILED', 'RPC_CALL_FAIL', 'RPC_MCGET_FAIL', 'PERSISTENT_TIMESTAMP_OUTDATED', 'RPC_MCGET_FAIL', 'no workers running', 'No workers running'], true))) {
                     $this->API->logger("Resending $request in 1 second due to {$response['error_message']}");
@@ -353,16 +343,6 @@ trait ResponseHandler
                 $this->methodRecall($request, $datacenter);
                 return null;
             case 400:
-                if ($request->previousQueuedMessage &&
-                    (
-                        $response['error_message'] === 'MSG_WAIT_FAILED'
-                        || $response['error_message'] === 'MSG_WAIT_TIMEOUT'
-                    )
-                ) {
-                    $this->API->logger("Resending $request due to {$response['error_message']}");
-                    $this->methodRecall($request, $this->datacenter);
-                    return null;
-                }
                 return static fn () => RPCErrorException::make($response['error_message'], $response['error_code'], $request->constructor);
             case 401:
                 switch ($response['error_message']) {

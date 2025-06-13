@@ -31,7 +31,6 @@ use danog\MadelineProto\Exception;
 use danog\MadelineProto\Lang;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\MTProto\PermAuthKey;
-use danog\MadelineProto\MTProto\TempAuthKey;
 use danog\MadelineProto\MTProtoTools\PasswordCalculator;
 use danog\MadelineProto\RPCError\PasswordHashInvalidError;
 use danog\MadelineProto\RPCError\SessionPasswordNeededError;

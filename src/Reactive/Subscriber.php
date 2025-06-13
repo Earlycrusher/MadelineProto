@@ -18,17 +18,18 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\Reactive;
 
-/** 
+/**
  * @internal
- * 
+ *
  * @template T
  */
-interface Subscriber {
-    /** 
+interface Subscriber
+{
+    /**
      * @param T $initState
      */
     public function onAttach($initState): void;
-    /** 
+    /**
      * @param T $prevState
      * @param T $state
      */

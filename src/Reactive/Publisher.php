@@ -20,37 +20,39 @@ namespace danog\MadelineProto\Reactive;
 
 use WeakMap;
 
-/** 
+/**
  * @internal
- * 
+ *
  * @template T
  */
-final class Publisher {
+final class Publisher
+{
     /** @var WeakMap<Subscriber, true> */
     private WeakMap $subscribers;
-    /** 
+    /**
      * @param T $state
      */
     public function __construct(
         private mixed $state
-    )
-    {
+    ) {
         $this->subscribers = new WeakMap;
     }
-    
+
     public function __sleep()
     {
         return ['state'];
     }
 
-    public function subscribe(Subscriber $subscriber): void {
+    public function subscribe(Subscriber $subscriber): void
+    {
         if (!isset($this->subscribers[$subscriber])) {
             $this->subscribers[$subscriber] = true;
             $subscriber->onAttach($this->state);
         }
     }
 
-    public function publish($state): void {
+    public function publish($state): void
+    {
         if ($state !== $this->state) {
             $prev = $this->state;
             foreach ($this->subscribers as $subscriber => $_) {

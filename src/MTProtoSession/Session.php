@@ -103,12 +103,6 @@ trait Session
      */
     public int $time_delta = 0;
     /**
-     * Call queue.
-     *
-     * @var array<string, MTProtoOutgoingMessage>
-     */
-    public array $callQueue = [];
-    /**
      * Ack queue.
      *
      * @var list<int>
