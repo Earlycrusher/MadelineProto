@@ -58,10 +58,8 @@ trait AuthKeyHandler
 {
     /**
      * Create authorization key.
-     *
-     * @return ($temp is false ? PermAuthKey : TempAuthKey)|null
      */
-    public function createAuthKey(bool $temp, Publisher $state): PermAuthKey|TempAuthKey|null
+    public function createAuthKey(bool $temp): void
     {
         $expires_in = $temp ? MTProto::PFS_DURATION : -1;
         $cdn = $this->isCDN();
@@ -369,15 +367,14 @@ trait AuthKeyHandler
                                 throw new SecurityException('wrong new_nonce_hash1');
                             }
                             $this->API->logger('Diffie Hellman key exchange processed successfully!', Logger::VERBOSE);
-                            $key = $expires_in < 0 ? new PermAuthKey() : new TempAuthKey($state);
-                            if ($expires_in >= 0) {
-                                \assert($key instanceof TempAuthKey);
-                                $key->expires(time() + $expires_in);
+                            if ($temp) {
+                                $this->shared->auth->setTempAuthKey($auth_key_str);
+                                $this->shared->auth->serverSalt = substr($new_nonce, 0, 8) ^ substr($server_nonce, 0, 8);
+                            } else {
+                                $this->shared->auth->setAuthKey($auth_key_str);
                             }
-                            $key->setServerSalt(substr($new_nonce, 0, 8) ^ substr($server_nonce, 0, 8));
-                            $key->setAuthKey($auth_key_str);
                             $this->API->logger('Auth key generated', Logger::NOTICE);
-                            return $key;
+                            return;
                         case 'dh_gen_retry':
                             if ($Set_client_DH_params_answer['new_nonce_hash2'] != $new_nonce_hash2) {
                                 throw new SecurityException('wrong new_nonce_hash_2');
@@ -407,6 +404,5 @@ trait AuthKeyHandler
         if (!$cdn) {
             throw new SecurityException('Auth Failed, please check the logfile for more information, make sure to install https://prime.madelineproto.xyz!');
         }
-        return null;
     }
 }

@@ -139,8 +139,6 @@ final class Connection
      *
      */
     private bool $needsReconnect = false;
-    /** @var Publisher<ConnectionState> */
-    private Publisher $connectionState;
     /**
      * Indicate if this socket needs to be reconnected.
      *
@@ -260,7 +258,7 @@ final class Connection
     /** @return Publisher<ConnectionState> */
     public function getState(): Publisher
     {
-        return $this->connectionState;
+        return $this->shared->auth->connectionState;
     }
 
     private ?LocalMutex $connectMutex = null;
@@ -605,7 +603,6 @@ final class Connection
         $this->API->logger = $this->API->logger;
         $this->datacenter = $datacenter;
         $this->datacenterId = $this->datacenter . '.' . $this->id;
-        $this->connectionState = $connectionState;
     }
     /**
      * Get main instance.

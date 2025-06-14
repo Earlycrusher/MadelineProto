@@ -30,7 +30,7 @@ use Webmozart\Assert\Assert;
  *
  * @internal
  */
-final class NewAuthKey implements Subscriber
+final class NewAuthKey
 {
     private ?string $authKey = null;
     private ?string $id = null;
@@ -38,42 +38,42 @@ final class NewAuthKey implements Subscriber
     private ?string $tempId = null;
     public ?string $serverSalt = null;
 
-    private ConnectionState $state;
+    private ConnectionState $state = ConnectionState::UNENCRYPTED;
+    /** @var Publisher<ConnectionState> */
+    public readonly Publisher $connectionState;
     
     public function __construct(
-        private readonly Publisher $connectionState,
+        public readonly bool $isMedia,
+        public readonly bool $isCdn,
     )
     {
-    }
-
-    private function notify(): void
-    {
-        if ($this->tempAuthKey === null || $this->serverSalt === null) {
-            $this->state = ConnectionState::UNENCRYPTED;
-            return;
-        } elseif ($this->inited && $this->bound && $this->authorized) {
-            $this->connectionState->publish(ConnectionState::ENCRYPTED);
-            return;
-        } else {
-            $this->connectionState->publish(ConnectionState::ENCRYPTED_NOT_READY);
-        }
         $this->connectionState->publish($this->state);
     }
 
+    public function getState(): ConnectionState
+    {
+        return $this->state;
+    }
     public function setAuthKey(?string $authKey): void
     {
         $this->authKey = $authKey;
-        if ($authKey !== null) {
+        if ($authKey === null) {
+            $this->id = null;
+        } else {
             $this->id = substr(sha1($authKey, true), -8);
         }
     }
     public function setTempAuthKey(?string $authKey): void
     {
         $this->tempAuthKey = $authKey;
-        if ($authKey !== null) {
+        if ($authKey === null) {
+            $this->tempId = null;
+            $this->state = ConnectionState::UNENCRYPTED;
+        } else {
             $this->tempId = substr(sha1($authKey, true), -8);
+            $this->state = ConnectionState::ENCRYPTED_NOT_INITED;
         }
-        $this->notify();
+        $this->connectionState->publish($this->state);
     }
     /**
      * Get auth key.
@@ -104,26 +104,19 @@ final class NewAuthKey implements Subscriber
         return $this->tempId;
     }
 
-    public function isInited(): bool {
-        return $this->inited;
+    public function init(): void {
+        Assert::eq($this->state, ConnectionState::ENCRYPTED_NOT_INITED);
+        $this->state = ConnectionState::ENCRYPTED_NOT_BOUND;
+        $this->connectionState->publish($this->state);
     }
-    public function init(bool $inited): void {
-        $this->inited = $inited;
-        $this->notify();
+    public function bind(): void {
+        Assert::eq($this->state, ConnectionState::ENCRYPTED_NOT_BOUND);
+        $this->state = ConnectionState::ENCRYPTED_NOT_AUTHED;
+        $this->connectionState->publish($this->state);
     }
-    public function isBound(): bool {
-        Assert::true($this->inited);
-        return $this->bound;
-    }
-    public function bind(bool $bound): void {
-        $this->bound = $bound;
-        $this->notify();
-    }
-    public function isAuthorized(): bool {
-        return $this->authorized;
-    }
-    public function authorized(bool $authorized): void {
-        $this->authorized = $authorized;
-        $this->notify();
+    public function authorize(): void {
+        Assert::eq($this->state, ConnectionState::ENCRYPTED_NOT_AUTHED);
+        $this->state = ConnectionState::ENCRYPTED;
+        $this->connectionState->publish($this->state);
     }
 }

@@ -43,6 +43,11 @@ final class Publisher
         return ['state'];
     }
 
+    public function __wakeup()
+    {
+        $this->subscribers = new WeakMap;
+    }
+
     public function subscribe(Subscriber $subscriber): void
     {
         if (!isset($this->subscribers[$subscriber])) {
