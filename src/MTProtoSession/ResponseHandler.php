@@ -23,11 +23,13 @@ namespace danog\MadelineProto\MTProtoSession;
 use Amp\SignalException;
 use danog\BetterPrometheus\BetterHistogram;
 use danog\Loop\Loop;
+use danog\MadelineProto\API;
 use danog\MadelineProto\FileRedirect;
 use danog\MadelineProto\Lang;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\Loop\Update\UpdateLoop;
 use danog\MadelineProto\MTProto;
+use danog\MadelineProto\MTProto\LoginState;
 use danog\MadelineProto\MTProto\MTProtoIncomingMessage;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\PTSException;
@@ -47,6 +49,7 @@ use const PHP_EOL;
  * Manages responses.
  *
  * @property ?BetterHistogram $requestLatencies
+ * @property MTProto $API
  * @internal
  */
 trait ResponseHandler
@@ -229,14 +232,12 @@ trait ResponseHandler
             }
             $request->reply(static fn () => RPCErrorException::make('Received bad_msg_notification: ' . MTProto::BAD_MSG_ERROR_CODES[$response['error_code']], $response['error_code'], $request->constructor));
             return;
+        } elseif ($constructor === 'auth.authorization') {
+            $this->API->processAuthorization($response, $this->datacenter);
+        } elseif ($request->userRelated) {
+            $this->API->loginState->publish(new LoginState(API::LOGGED_IN, $this->datacenter));
         }
 
-        if ($request->isMethod && $request->constructor !== 'auth.bindTempAuthKey'
-            && $this->shared->hasTempAuthKey()
-            && !$this->shared->getTempAuthKey()->isInited()
-        ) {
-            $this->shared->getTempAuthKey()->init(true);
-        }
         if (isset($response['_']) && !$this->shared->auth->isCdn) {
             $responseType = $this->API->getTL()->getConstructors()->findByPredicate($response['_'])['type'];
             if ($responseType === 'Updates') {
@@ -331,9 +332,6 @@ trait ResponseHandler
                     );
                 }
                 $this->API->datacenter->currentDatacenter = $datacenter;
-                if ($request->userRelated) {
-                    $this->API->authorized_dc = $this->API->datacenter->currentDatacenter;
-                }
                 $this->API->logger("Resending $request to new DC $datacenter...");
                 $this->methodRecall($request, $datacenter);
                 return null;
@@ -365,7 +363,7 @@ trait ResponseHandler
                         $this->shared->auth->setTempAuthKey(null);
                         $this->shared->auth->setPermAuthKey(null);
                         $this->API->logger("Auth key not registered in DC {$this->datacenter} with RPC error {$response['error_message']}, resetting temporary and permanent auth keys...", Logger::ERROR);
-                        if ($this->API->authorized_dc == $this->datacenter && $this->API->authorized === \danog\MadelineProto\API::LOGGED_IN) {
+                        if ($this->API->loginState->getState()->authorizedDc == $this->datacenter) {
                             $this->API->logger('Permanent auth key was main authorized key, logging out...', Logger::FATAL_ERROR);
                             $phone = isset($this->API->authorization['user']['phone']) ? '+' . $this->API->authorization['user']['phone'] : 'you are currently using';
                             $this->API->logger(sprintf(Lang::$current_lang['account_banned'], $phone), Logger::FATAL_ERROR);

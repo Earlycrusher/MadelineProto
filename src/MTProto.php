@@ -295,10 +295,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
      */
     public PeerDatabase $peerDatabase;
     /**
-     * Phone config loop.
-     */
-    public ?PeriodicLoopInternal $phoneConfigLoop = null;
-    /**
      * Config loop.
      */
     public ?PeriodicLoopInternal $configLoop = null;
@@ -506,6 +502,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         $q = new SplQueue;
         $q->setIteratorMode(SplQueue::IT_MODE_DELETE);
         $this->updateQueue ??= $q;
+        $this->loginState = new Publisher(new LoginState(API::LOGGED_OUT, null));
 
         $initDeferred = new DeferredFuture;
         $this->initPromise = $initDeferred->getFuture();
@@ -752,8 +749,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
 
             // Authorization state
             'authorization',
-            'authorized',
-            'authorized_dc',
+            'loginState',
 
             // Authorization cache
             'rsa_keys',
@@ -888,11 +884,9 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     private function startLoops(): void
     {
         $this->serializeLoop ??= new PeriodicLoopInternal($this, $this->serialize(...), 'serialize', $this->settings->getSerialization()->getInterval());
-        $this->phoneConfigLoop ??= new PeriodicLoopInternal($this, $this->getPhoneConfig(...), 'phone config', 3600);
         $this->configLoop ??= new PeriodicLoopInternal($this, $this->getConfig(...), 'config', 3600);
 
         $this->serializeLoop->start();
-        $this->phoneConfigLoop->start();
         $this->configLoop->start();
         try {
             $this->ipcServer->start();
@@ -911,10 +905,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         if ($this->serializeLoop) {
             $this->serializeLoop->stop();
             $this->serializeLoop = null;
-        }
-        if ($this->phoneConfigLoop) {
-            $this->phoneConfigLoop->stop();
-            $this->phoneConfigLoop = null;
         }
         if ($this->configLoop) {
             $this->configLoop->stop();
@@ -1163,8 +1153,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             }
             // Connect to all DCs, start internal loops
             if ($this->fullGetSelf()) {
-                $this->authorized = API::LOGGED_IN;
-                $this->loginState->publish($this->authorized);
                 $this->setupLogger();
                 $this->startLoops();
                 $this->getCdnConfig();
@@ -1177,9 +1165,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             }
             $this->startUpdateSystem(true);
             $this->cacheFullDialogs();
-            if ($this->authorized === API::LOGGED_IN) {
-                $this->logger->logger("Obtaining updates after deserialization...", Logger::NOTICE);
-            }
 
             foreach ($this->broadcasts as $broadcast) {
                 $broadcast->resume();
@@ -1238,9 +1223,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             }
         }
         $this->logger->logger('Unreferenced instance');
-        if ($this->authorized === API::LOGGED_OUT) {
-            $this->wrapper->getSession()->delete();
-        }
     }
     /** @internal */
     public function isCdn(int $dc): bool
@@ -1480,22 +1462,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         }
     }
     /**
-     * Store shared phone config.
-     *
-     * @param mixed $watcherId Watcher ID
-     * @internal
-     */
-    public function getPhoneConfig(mixed $watcherId = null): void
-    {
-        if ($this->authorized === API::LOGGED_IN
-            && class_exists(VoIPServerConfigInternal::class)
-            && !$this->authorization['user']['bot']
-            && $this->datacenter->getDataCenterConnection($this->loginState->getState()->authorizedDc)->hasTempAuthKey()) {
-            $this->logger->logger('Fetching phone config...');
-            VoIPServerConfig::updateDefault($this->methodCallAsyncRead('phone.getCallConfig', []));
-        }
-    }
-    /**
      * Store RSA keys for CDN datacenters.
      */
     public function getCdnConfig(): void
@@ -1628,14 +1594,14 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
      */
     public function getAuthorization(): int
     {
-        return $this->authorized;
+        return $this->loginState->getState()->state;
     }
     /**
      * Get current password hint.
      */
     public function getHint(): string
     {
-        if ($this->authorized !== API::WAITING_PASSWORD) {
+        if ($this->loginState->getState()->state !== API::WAITING_PASSWORD) {
             throw new Exception('Not waiting for the password!');
         }
         Assert::string($this->authorization['hint']);

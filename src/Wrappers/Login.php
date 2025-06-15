@@ -31,6 +31,7 @@ use danog\MadelineProto\Exception;
 use danog\MadelineProto\Lang;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\MTProto\ConnectionState;
+use danog\MadelineProto\MTProto\LoginState;
 use danog\MadelineProto\MTProto\PermAuthKey;
 use danog\MadelineProto\MTProtoTools\PasswordCalculator;
 use danog\MadelineProto\RPCError\PasswordHashInvalidError;
@@ -63,14 +64,14 @@ trait Login
         /** @psalm-suppress InvalidArgument */
         $this->TL->updateCallbacks($callbacks);
         $this->logger->logger(Lang::$current_lang['login_bot'], Logger::NOTICE);
-        return $this->processAuthorization($this->methodCallAsyncRead(
+        return $this->methodCallAsyncRead(
             'auth.importBotAuthorization',
             [
                 'bot_auth_token' => $token,
                 'api_id' => $this->settings->getAppInfo()->getApiId(),
                 'api_hash' => $this->settings->getAppInfo()->getApiHash(),
             ],
-        ));
+        );
     }
 
     private ?DeferredCancellation $qrLoginDeferred = null;
@@ -111,14 +112,12 @@ trait Login
 
                 if ($authorization['_'] === 'auth.loginTokenMigrateTo') {
                     $datacenter = $this->isTestMode() ? 10_000 + $authorization['dc_id'] : $authorization['dc_id'];
-                    $this->authorized_dc = $datacenter;
                     $authorization = $this->methodCallAsyncRead(
                         'auth.importLoginToken',
                         $authorization,
                         $datacenter
                     );
                 }
-                $this->processAuthorization($authorization['authorization']);
             } catch (SessionPasswordNeededError) {
                 $this->logger->logger(Lang::$current_lang['login_2fa_enabled'], Logger::NOTICE);
                 $this->authorization = $this->methodCallAsyncRead('account.getPassword', [], $datacenter ?? null);
@@ -250,7 +249,7 @@ trait Login
             $authorization['_'] = 'account.needSignup';
             return $authorization;
         }
-        return $this->processAuthorization($authorization);
+        return $authorization;
     }
     /**
      * Import authorization.
@@ -277,11 +276,8 @@ trait Login
         $dataCenterConnection->auth->setAuthKey($auth_key);
         $dataCenterConnection->auth->connectionState->waitForState(ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN);
         $this->datacenter->currentDatacenter = $mainDcID;
-        $this->authorized_dc = $mainDcID;
-        $this->authorized = \danog\MadelineProto\API::LOGGED_IN;
-        $this->loginState->publish($this->authorized);
+        $this->loginState->publish(new LoginState(API::LOGGED_IN, $mainDcID));
 
-        $this->getPhoneConfig();
         $res = ($this->fullGetSelf());
         $callbacks = [$this, $this->referenceDatabase, $this->peerDatabase];
         if (!($this->authorization['user']['bot'] ?? false)) {
@@ -302,11 +298,13 @@ trait Login
      */
     public function exportAuthorization(): array
     {
-        if ($this->authorized !== \danog\MadelineProto\API::LOGGED_IN) {
+        $dc = $this->loginState->getState()->authorizedDc;
+
+        if ($dc === null) {
             throw new Exception(Lang::$current_lang['not_loggedIn']);
         }
-        $this->fullGetSelf();
-        return [$this->datacenter->currentDatacenter, $this->datacenter->getDataCenterConnection($this->datacenter->currentDatacenter)->getPermAuthKey()->getAuthKey()];
+
+        return [$dc, $this->datacenter->getDataCenterConnection($dc)->auth->getAuthKey()];
     }
     /**
      * Complete signup to Telegram.
@@ -322,7 +320,7 @@ trait Login
         $this->authorized = API::NOT_LOGGED_IN;
         $this->loginState->publish($this->authorized);
         $this->logger->logger(Lang::$current_lang['signing_up'], Logger::NOTICE);
-        return $this->processAuthorization($this->methodCallAsyncRead('auth.signUp', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $this->authorization['phone_code'], 'first_name' => $first_name, 'last_name' => $last_name]));
+        return $this->methodCallAsyncRead('auth.signUp', ['phone_number' => $this->authorization['phone_number'], 'phone_code_hash' => $this->authorization['phone_code_hash'], 'phone_code' => $this->authorization['phone_code'], 'first_name' => $first_name, 'last_name' => $last_name]);
     }
     /**
      * Complete 2FA login.
@@ -336,27 +334,24 @@ trait Login
         }
         $this->logger->logger(Lang::$current_lang['login_user'], Logger::NOTICE);
         try {
-            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password], $this->authorized_dc);
+            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password]);
         } catch (PasswordHashInvalidError) {
-            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password], $this->authorized_dc);
+            $res = $this->methodCallAsyncRead('auth.checkPassword', ['password' => $password]);
         }
-        return $this->processAuthorization($res);
+        return $res;
     }
-    private function processAuthorization(array $authorization): array
+    /** @internal */
+    public function processAuthorization(array $authorization, int $datacenter): array
     {
-        if ($this->authorized === \danog\MadelineProto\API::LOGGED_IN) {
+        if ($this->loginState->getState()->state === \danog\MadelineProto\API::LOGGED_IN) {
             throw new Exception(Lang::$current_lang['already_loggedIn']);
         }
-        $this->authorized_dc ??= $this->datacenter->currentDatacenter;
         $this->authorization = $authorization;
-        $this->authorized = \danog\MadelineProto\API::LOGGED_IN;
-        $this->loginState->publish($this->authorized);
-        $this->datacenter->getDataCenterConnection($this->authorized_dc)->authorized(true);
+        $this->loginState->publish(new LoginState(API::LOGGED_IN, $datacenter));
         $this->qrLoginDeferred?->cancel();
         $this->qrLoginDeferred = null;
         $this->logger->logger(Lang::$current_lang['login_ok'], Logger::NOTICE);
         $this->fullGetSelf();
-        $this->getPhoneConfig();
         $this->startUpdateSystem();
         $this->initDb();
         $this->serialize();
