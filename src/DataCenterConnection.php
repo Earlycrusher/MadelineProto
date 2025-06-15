@@ -22,12 +22,12 @@ namespace danog\MadelineProto;
 
 use Amp\DeferredFuture;
 use Amp\Future;
-use Amp\Sync\LocalMutex;
 use danog\MadelineProto\Loop\Generic\PeriodicLoopInternal;
 use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProto\NewAuthKey;
 use danog\MadelineProto\MTProtoTools\Crypt;
+use danog\MadelineProto\Reactive\Actor;
 use danog\MadelineProto\Reactive\Subscriber;
 use danog\MadelineProto\RPCError\DcIdInvalidError;
 use danog\MadelineProto\Settings\Connection as ConnectionSettings;
@@ -119,16 +119,19 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
             $this->API->isCdn($this->datacenter),
             $this->API->loginState,
         );
-        $this->auth->connectionState->subscribe($this);
+        $this->auth->connectionState->subscribe(Actor::from($this));
     }
 
+    #[\Override]
     public function onAttach($initState): void
     {
-        EventLoop::queue($this->initAuthorization(...));
+        $this->initAuthorization($initState);
     }
+
+    #[\Override]
     public function onStateChange($prevState, $state): void
     {
-        EventLoop::queue($this->initAuthorization(...));
+        $this->onAttach($state);
     }
 
     /**
@@ -152,163 +155,108 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
         \assert($this->ctx !== null);
         return $this->ctx;
     }
-    private ?LocalMutex $initingAuth = null;
-    /**
-     * Init auth keys for single DC.
-     *
-     * @internal
-     */
-    public function initAuthorization(): void
+    private function initAuthorization(ConnectionState $state): void
     {
         $logger = $this->API->logger;
-        $this->initingAuth ??= new LocalMutex;
-        $logger->logger("Acquiring lock in order to init auth for DC {$this->datacenter}", Logger::NOTICE);
-        $lock = $this->initingAuth->acquire();
-        try {
-            $logger->logger("Initing auth for DC {$this->datacenter}", Logger::NOTICE);
-            $this->waitGetConnection();
-            $connection = $this->getAuthConnection();
-            $this->createSession();
-
-            if ($this->auth->getState() === ConnectionState::UNENCRYPTED_NO_PERMANENT) {
-                if ($this->auth->isMedia) {
-                    $connection = $this->API->datacenter->getDataCenterConnection(-$this->datacenter);
-                    $connection->initAuthorization();
-                    $this->auth->setAuthKey($connection->auth->getAuthKey());
-                } else {
-                    Assert::false($this->auth->isCdn, 'CDN connections should not be initialized with a permanent auth key.');
-                    $logger->logger(sprintf('Generating permanent authorization key for DC %s...', $this->datacenter), Logger::NOTICE);
-                    $connection->createAuthKey(false);
-                }
-            }
-
-            if ($this->auth->getState() === ConnectionState::UNENCRYPTED) {
-                $logger->logger(sprintf('Generating temporary authorization key for DC %s...', $this->datacenter), Logger::NOTICE);
-                $connection->createAuthKey(true);
-            }
-
-            if ($this->auth->getState() === ConnectionState::ENCRYPTED_NOT_INITED) {
-                $connection->initConnection();
-            }
-
-            if ($this->auth->getState() === ConnectionState::ENCRYPTED_NOT_BOUND) {
-                $this->bindTempAuthKey();
-            }
-
-            if ($this->auth->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED) {
-                $this->syncAuthorization();
-            }
-        } finally {
-            $logger->logger("Done initing auth for DC {$this->datacenter}", Logger::NOTICE);
-            EventLoop::queue($lock->release(...));
-        }
-    }
-
-    private function initConnection(): void
-    {
+        $this->waitGetConnection();
         $connection = $this->getAuthConnection();
-        $this->API->logger('Writing client info (also executing help.getConfig)...', Logger::NOTICE);
-        $connection->methodCallAsyncRead('invokeWithLayer', [
-            'layer' => $this->API->settings->getSchema()->getLayer(),
-            'query' => $this->API->getTL()->serializeMethod(
-                'initConnection',
-                [
-                    'api_id' => $this->API->settings->getAppInfo()->getApiId(),
-                    'api_hash' => $this->API->settings->getAppInfo()->getApiHash(),
-                    'device_model' => !$connection->isCDN() ? $this->API->settings->getAppInfo()->getDeviceModel() : 'n/a',
-                    'system_version' => !$connection->isCDN() ? $this->API->settings->getAppInfo()->getSystemVersion() : 'n/a',
-                    'app_version' => $this->API->settings->getAppInfo()->getAppVersion(),
-                    'system_lang_code' => $this->API->settings->getAppInfo()->getSystemLangCode(),
-                    'lang_code' => $this->API->settings->getAppInfo()->getLangCode(),
-                    'lang_pack' => $this->API->settings->getAppInfo()->getLangPack(),
-                    'proxy' => $connection->getInputClientProxy(),
-                    'query' => $this->API->getTL()->serializeMethod(
-                        $connection->isCDN() ? 'ping' : 'help.getConfig',
-                        []
-                    ),
-                ]
-            ),
-            'authMethod' => true,
-        ]);
-    }
+        $this->createSession();
 
-    /**
-     * Bind temporary and permanent auth keys.
-     *
-     * @internal
-     */
-    public function bindTempAuthKey(): bool
-    {
-        $connection = $this->getAuthConnection();
-        $logger = $this->API->logger;
-        $expires_in = MTProto::PFS_DURATION;
-        for ($retry_id_total = 1; $retry_id_total <= $this->API->settings->getAuth()->getMaxAuthTries(); $retry_id_total++) {
-            try {
-                $logger->logger('Binding authorization keys...', Logger::VERBOSE);
-                $nonce = Tools::random(8);
-                $expires_at = time() + $expires_in;
-                $temp_auth_key_id = $this->auth->getTempId();
-                $perm_auth_key_id = $this->auth->getID();
-                $temp_session_id = $connection->session_id;
-                $message_data = ($this->API->getTL()->serializeObject(['type' => ''], ['_' => 'bind_auth_key_inner', 'nonce' => $nonce, 'temp_auth_key_id' => $temp_auth_key_id, 'perm_auth_key_id' => $perm_auth_key_id, 'temp_session_id' => $temp_session_id, 'expires_at' => $expires_at], 'bindTempAuthKey_inner'));
-                $message_id = $connection->msgIdHandler->generateMessageId();
-                $seq_no = 0;
-                $encrypted_data = Tools::random(16).Tools::packSignedLong($message_id).pack('VV', $seq_no, \strlen($message_data)).$message_data;
-                $message_key = substr(sha1($encrypted_data, true), -16);
-                $padding = Tools::random(Tools::posmod(-\strlen($encrypted_data), 16));
-                [$aes_key, $aes_iv] = Crypt::oldKdf($message_key, $this->auth->getAuthKey());
-                $encrypted_message = $this->auth->getID().$message_key.Crypt::igeEncrypt($encrypted_data.$padding, $aes_key, $aes_iv);
-                $res = $connection->methodCallAsyncRead('auth.bindTempAuthKey', ['perm_auth_key_id' => $perm_auth_key_id, 'nonce' => $nonce, 'expires_at' => $expires_at, 'encrypted_message' => $encrypted_message, 'madelineMsgId' => $message_id, 'authMethod' => true]);
-                if ($res === true) {
-                    $logger->logger("Bound temporary and permanent authorization keys, DC {$this->datacenter}", Logger::NOTICE);
-                    $this->auth->bind();
-                    return true;
-                }
-            } catch (SecurityException $e) {
-                $logger->logger('An exception occurred while generating the authorization key: '.$e->getMessage().' Retrying (try number '.$retry_id_total.')...', Logger::WARNING);
-            } catch (Exception $e) {
-                $logger->logger('An exception occurred while generating the authorization key: '.$e->getMessage().' Retrying (try number '.$retry_id_total.')...', Logger::WARNING);
-            } catch (RPCErrorException $e) {
-                $logger->logger('An RPCErrorException occurred while generating the authorization key: '.$e->getMessage().' Retrying (try number '.$retry_id_total.')...', Logger::WARNING);
-            }
-        }
-        throw new SecurityException('An error occurred while binding temporary and permanent authorization keys.');
-    }
-    /**
-     * Sync authorization data between DCs.
-     */
-    private function syncAuthorization(): void
-    {
-        if ($this->API->authorized !== \danog\MadelineProto\API::LOGGED_IN
-            || $this->auth->getState() !== ConnectionState::ENCRYPTED_NOT_AUTHED
-        ) {
+        // Skip old states in case of unexpected server-side abort back to the unencrypted state.
+        if ($state !== $this->auth->connectionState->getState()) {
             return;
         }
-        $socket = $this->getAuthConnection();
-        $logger = $this->API->logger;
-        foreach ($this->API->datacenter->getDataCenterConnections() as $authorized_dc_id => $authorized_socket) {
-            if ($this->API->authorized_dc !== null && $authorized_dc_id !== $this->API->authorized_dc) {
-                continue;
-            }
-            if ($authorized_socket->auth->getState() === ConnectionState::ENCRYPTED
-                && !$authorized_socket->auth->isCdn
-                && $this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
-                && $authorized_dc_id !== $this->datacenter
-            ) {
+
+        if ($state === ConnectionState::UNENCRYPTED_NO_PERMANENT) {
+            Assert::false($this->auth->isMedia);
+            Assert::false($this->auth->isCdn);
+            $logger->logger(sprintf('Generating permanent authorization key for DC %s...', $this->datacenter), Logger::NOTICE);
+            $connection->createAuthKey(false);
+        } elseif ($state === ConnectionState::UNENCRYPTED) {
+            $logger->logger(sprintf('Generating temporary authorization key for DC %s...', $this->datacenter), Logger::NOTICE);
+            $connection->createAuthKey(true);
+        } elseif ($state === ConnectionState::ENCRYPTED_NOT_INITED) {
+            $this->API->logger('Writing client info (also executing help.getConfig)...', Logger::NOTICE);
+            $connection->methodCallAsyncRead('invokeWithLayer', [
+                'layer' => $this->API->settings->getSchema()->getLayer(),
+                'query' => $this->API->getTL()->serializeMethod(
+                    'initConnection',
+                    [
+                        'api_id' => $this->API->settings->getAppInfo()->getApiId(),
+                        'api_hash' => $this->API->settings->getAppInfo()->getApiHash(),
+                        'device_model' => !$connection->isCDN() ? $this->API->settings->getAppInfo()->getDeviceModel() : 'n/a',
+                        'system_version' => !$connection->isCDN() ? $this->API->settings->getAppInfo()->getSystemVersion() : 'n/a',
+                        'app_version' => $this->API->settings->getAppInfo()->getAppVersion(),
+                        'system_lang_code' => $this->API->settings->getAppInfo()->getSystemLangCode(),
+                        'lang_code' => $this->API->settings->getAppInfo()->getLangCode(),
+                        'lang_pack' => $this->API->settings->getAppInfo()->getLangPack(),
+                        'proxy' => $connection->getInputClientProxy(),
+                        'query' => $this->API->getTL()->serializeMethod(
+                            $connection->isCDN() ? 'ping' : 'help.getConfig',
+                            []
+                        ),
+                    ]
+                ),
+                'authMethod' => true,
+            ]);
+        } elseif ($state === ConnectionState::ENCRYPTED_NOT_BOUND) {
+            $expires_in = MTProto::PFS_DURATION;
+            for ($retry_id_total = 1; $retry_id_total <= $this->API->settings->getAuth()->getMaxAuthTries(); $retry_id_total++) {
                 try {
-                    $logger->logger('Trying to copy authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter);
-                    $exported_authorization = $this->API->methodCallAsyncRead('auth.exportAuthorization', ['dc_id' => $this->datacenter % 10_000, 'userRelated' => true], $authorized_dc_id);
-                    $exported_authorization['authMethod'] = true;
-                    $socket->methodCallAsyncRead('auth.importAuthorization', $exported_authorization);
-                    $this->auth->authorize();
-                    return;
-                } catch (DcIdInvalidError $e) {
-                    $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
-                    break;
-                } catch (RPCErrorException|Exception $e) {
-                    $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
+                    $logger->logger('Binding authorization keys...', Logger::VERBOSE);
+                    $nonce = Tools::random(8);
+                    $expires_at = time() + $expires_in;
+                    $temp_auth_key_id = $this->auth->getTempId();
+                    $perm_auth_key_id = $this->auth->getID();
+                    $temp_session_id = $connection->session_id;
+                    $message_data = ($this->API->getTL()->serializeObject(['type' => ''], ['_' => 'bind_auth_key_inner', 'nonce' => $nonce, 'temp_auth_key_id' => $temp_auth_key_id, 'perm_auth_key_id' => $perm_auth_key_id, 'temp_session_id' => $temp_session_id, 'expires_at' => $expires_at], 'bindTempAuthKey_inner'));
+                    $message_id = $connection->msgIdHandler->generateMessageId();
+                    $seq_no = 0;
+                    $encrypted_data = Tools::random(16).Tools::packSignedLong($message_id).pack('VV', $seq_no, \strlen($message_data)).$message_data;
+                    $message_key = substr(sha1($encrypted_data, true), -16);
+                    $padding = Tools::random(Tools::posmod(-\strlen($encrypted_data), 16));
+                    [$aes_key, $aes_iv] = Crypt::oldKdf($message_key, $this->auth->getAuthKey());
+                    $encrypted_message = $this->auth->getID().$message_key.Crypt::igeEncrypt($encrypted_data.$padding, $aes_key, $aes_iv);
+                    $res = $connection->methodCallAsyncRead('auth.bindTempAuthKey', ['perm_auth_key_id' => $perm_auth_key_id, 'nonce' => $nonce, 'expires_at' => $expires_at, 'encrypted_message' => $encrypted_message, 'madelineMsgId' => $message_id, 'authMethod' => true]);
+                    if ($res === true) {
+                        $logger->logger("Bound temporary and permanent authorization keys, DC {$this->datacenter}", Logger::NOTICE);
+                        $this->auth->bind();
+                        return;
+                    }
+                } catch (SecurityException $e) {
+                    $logger->logger('An exception occurred while generating the authorization key: '.$e->getMessage().' Retrying (try number '.$retry_id_total.')...', Logger::WARNING);
+                } catch (Exception $e) {
+                    $logger->logger('An exception occurred while generating the authorization key: '.$e->getMessage().' Retrying (try number '.$retry_id_total.')...', Logger::WARNING);
+                } catch (RPCErrorException $e) {
+                    $logger->logger('An RPCErrorException occurred while generating the authorization key: '.$e->getMessage().' Retrying (try number '.$retry_id_total.')...', Logger::WARNING);
                 }
-                // Turns out this DC isn't authorized after all
+            }
+            throw new SecurityException('An error occurred while binding temporary and permanent authorization keys.');
+        } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED) {
+            foreach ($this->API->datacenter->getDataCenterConnections() as $authorized_dc_id => $authorized_socket) {
+                if ($this->API->authorized_dc !== null && $authorized_dc_id !== $this->API->authorized_dc) {
+                    continue;
+                }
+                if ($authorized_socket->auth->connectionState->getState() === ConnectionState::ENCRYPTED
+                    && !$authorized_socket->auth->isCdn
+                    && $this->API->authorized === \danog\MadelineProto\API::LOGGED_IN
+                    && $authorized_dc_id !== $this->datacenter
+                ) {
+                    try {
+                        $logger->logger('Trying to copy authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter);
+                        $exported_authorization = $this->API->methodCallAsyncRead('auth.exportAuthorization', ['dc_id' => $this->datacenter % 10_000, 'userRelated' => true], $authorized_dc_id);
+                        $exported_authorization['authMethod'] = true;
+                        $connection->methodCallAsyncRead('auth.importAuthorization', $exported_authorization);
+                        $this->auth->authorize();
+                        return;
+                    } catch (DcIdInvalidError $e) {
+                        $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
+                        break;
+                    } catch (RPCErrorException|Exception $e) {
+                        $logger->logger('Failure while syncing authorization from DC '.$authorized_dc_id.' to DC '.$this->datacenter.': '.$e->getMessage(), Logger::ERROR);
+                    }
+                    // Turns out this DC isn't authorized after all
+                }
             }
         }
     }

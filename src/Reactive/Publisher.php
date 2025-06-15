@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\Reactive;
 
+use Amp\Cancellation;
 use SplObjectStorage;
 use WeakMap;
 
@@ -28,7 +29,7 @@ use WeakMap;
  */
 final class Publisher
 {
-    /** @var WeakMap<Subscriber, bool> */
+    /** @var WeakMap<Subscriber<T>, null> */
     private WeakMap $subscribers;
     /**
      * @param T $state
@@ -39,8 +40,15 @@ final class Publisher
         $this->subscribers = new WeakMap;
     }
 
+    /** @return T */
+    public function getState(): mixed
+    {
+        return $this->state;
+    }
+
     public function __serialize(): array
     {
+        /** @var SplObjectStorage<Subscriber<T>, null>  */
         $subscribers = new SplObjectStorage;
         foreach ($this->subscribers as $subscriber => $v) {
             $subscribers[$subscriber] = $v;
@@ -48,9 +56,13 @@ final class Publisher
         return ['state' => $this->state, 'subscribers' => $subscribers];
     }
 
+    /**
+     * @param array{state: T, subscribers: SplObjectStorage<Subscriber<T>, null>} $data
+     */
     public function __unserialize(array $data): void
     {
         $this->state = $data['state'];
+        /** @var WeakMap<Subscriber<T>, null>  */
         $this->subscribers = new WeakMap;
         foreach ($data['subscribers'] as $subscriber => $v) {
             $this->subscribers[$subscriber] = $v;
@@ -58,30 +70,33 @@ final class Publisher
         }
     }
 
+    /** @param Subscriber<T> $subscriber */
     public function subscribe(Subscriber $subscriber): void
     {
         if (!isset($this->subscribers[$subscriber])) {
-            $this->subscribers[$subscriber] = false;
+            $this->subscribers[$subscriber] = null;
             $subscriber->onAttach($this->state);
         }
     }
 
-    public function subscribeActor(Subscriber $subscriber): void
-    {
-        if (!isset($this->subscribers[$subscriber])) {
-            $this->subscribers[$subscriber] = true;
-            $subscriber->onAttach($this->state);
-        }
-    }
-
+    /** @param T $state */
     public function publish($state): void
     {
         if ($state !== $this->state) {
             $prev = $this->state;
-            foreach ($this->subscribers as $subscriber => $actor) {
+            foreach ($this->subscribers as $subscriber => $_) {
                 $subscriber->onStateChange($prev, $state);
             }
             $this->state = $state;
         }
+    }
+
+    public function waitForState($state, ?Cancellation $cancellation = null): void {
+        if ($state === $this->state) {
+            return;
+        }
+        $waiter = new AsyncWaiter($state);
+        $this->subscribe($waiter);
+        $waiter->wait($cancellation);
     }
 }

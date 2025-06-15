@@ -23,6 +23,7 @@ namespace danog\MadelineProto\MTProto;
 /** @internal */
 enum ConnectionState
 {
+    case UNENCRYPTED_MEDIA_WAITING_MAIN;
     case UNENCRYPTED_NO_PERMANENT;
     case UNENCRYPTED;
     case ENCRYPTED_NOT_INITED;

@@ -60,7 +60,6 @@ final class WriteLoop extends Loop implements Subscriber
 
     private int $resendTimeout;
 
-    private bool $encrypted;
     private LinkedList $queue;
     private ?ConnectionState $pendingState = null;
 
@@ -98,14 +97,10 @@ final class WriteLoop extends Loop implements Subscriber
                 return self::STOP;
             }
             if ($this->pendingState !== null) {
-                $this->encrypted = match ($this->pendingState) {
-                    ConnectionState::UNENCRYPTED => false,
-                    ConnectionState::UNENCRYPTED_NO_PERMANENT => false,
-                    default => true
-                };
                 $this->queue = match ($this->pendingState) {
-                    ConnectionState::UNENCRYPTED => $this->connection->unencryptedPendingOutgoing,
-                    ConnectionState::UNENCRYPTED_NO_PERMANENT => $this->connection->unencryptedPendingOutgoing,
+                    ConnectionState::UNENCRYPTED,
+                    ConnectionState::UNENCRYPTED_NO_PERMANENT,
+                    ConnectionState::UNENCRYPTED_MEDIA_WAITING_MAIN => $this->connection->unencryptedPendingOutgoing,
                     ConnectionState::ENCRYPTED => $this->connection->mainPendingOutgoing,
                     default => $this->connection->uninitedPendingOutgoing
                 };
@@ -117,10 +112,10 @@ final class WriteLoop extends Loop implements Subscriber
             }
             $this->connection->writing(true);
             try {
-                if ($this->encrypted) {
-                    $this->encryptedWriteLoop();
-                } else {
+                if ($this->queue === $this->connection->unencryptedPendingOutgoing) {
                     $this->unencryptedWriteLoop();
+                } else {
+                    $this->encryptedWriteLoop();
                 }
             } catch (StreamException $e) {
                 if ($this->connection->shouldReconnect()) {
