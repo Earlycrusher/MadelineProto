@@ -171,31 +171,6 @@ final class DataCenterConnection implements SimpleSubscriber
         } elseif ($state === ConnectionState::UNENCRYPTED) {
             $logger->logger(sprintf('Generating temporary authorization key for DC %s...', $this->datacenter), Logger::NOTICE);
             $connection->createAuthKey(true);
-        } elseif ($state === ConnectionState::ENCRYPTED_NOT_INITED) {
-            $this->API->logger('Writing client info (also executing help.getConfig)...', Logger::NOTICE);
-            $connection->methodCallAsyncRead('invokeWithLayer', [
-                'layer' => $this->API->settings->getSchema()->getLayer(),
-                'query' => $this->API->getTL()->serializeMethod(
-                    'initConnection',
-                    [
-                        'api_id' => $this->API->settings->getAppInfo()->getApiId(),
-                        'api_hash' => $this->API->settings->getAppInfo()->getApiHash(),
-                        'device_model' => !$this->auth->isCdn ? $this->API->settings->getAppInfo()->getDeviceModel() : 'n/a',
-                        'system_version' => !$this->auth->isCdn ? $this->API->settings->getAppInfo()->getSystemVersion() : 'n/a',
-                        'app_version' => $this->API->settings->getAppInfo()->getAppVersion(),
-                        'system_lang_code' => $this->API->settings->getAppInfo()->getSystemLangCode(),
-                        'lang_code' => $this->API->settings->getAppInfo()->getLangCode(),
-                        'lang_pack' => $this->API->settings->getAppInfo()->getLangPack(),
-                        'proxy' => $connection->getInputClientProxy(),
-                        'query' => $this->API->getTL()->serializeMethod(
-                            $this->auth->isCdn ? 'ping' : 'help.getConfig',
-                            []
-                        ),
-                    ]
-                ),
-                'authMethod' => true,
-            ]);
-            $this->auth->init();
         } elseif ($state === ConnectionState::ENCRYPTED_NOT_BOUND) {
             $expires_in = MTProto::PFS_DURATION;
             for ($retry_id_total = 1; $retry_id_total <= $this->API->settings->getAuth()->getMaxAuthTries(); $retry_id_total++) {
@@ -229,6 +204,31 @@ final class DataCenterConnection implements SimpleSubscriber
                 }
             }
             throw new SecurityException('An error occurred while binding temporary and permanent authorization keys.');
+        } elseif ($state === ConnectionState::ENCRYPTED_NOT_INITED) {
+            $this->API->logger('Writing client info (also executing help.getConfig)...', Logger::NOTICE);
+            $connection->methodCallAsyncRead('invokeWithLayer', [
+                'layer' => $this->API->settings->getSchema()->getLayer(),
+                'query' => $this->API->getTL()->serializeMethod(
+                    'initConnection',
+                    [
+                        'api_id' => $this->API->settings->getAppInfo()->getApiId(),
+                        'api_hash' => $this->API->settings->getAppInfo()->getApiHash(),
+                        'device_model' => !$this->auth->isCdn ? $this->API->settings->getAppInfo()->getDeviceModel() : 'n/a',
+                        'system_version' => !$this->auth->isCdn ? $this->API->settings->getAppInfo()->getSystemVersion() : 'n/a',
+                        'app_version' => $this->API->settings->getAppInfo()->getAppVersion(),
+                        'system_lang_code' => $this->API->settings->getAppInfo()->getSystemLangCode(),
+                        'lang_code' => $this->API->settings->getAppInfo()->getLangCode(),
+                        'lang_pack' => $this->API->settings->getAppInfo()->getLangPack(),
+                        'proxy' => $connection->getInputClientProxy(),
+                        'query' => $this->API->getTL()->serializeMethod(
+                            $this->auth->isCdn ? 'ping' : 'help.getConfig',
+                            []
+                        ),
+                    ]
+                ),
+                'authMethod' => true,
+            ]);
+            $this->auth->init();
         } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED) {
             $authed = $this->API->loginState->getState()->authorizedDc;
             Assert::notNull($authed);

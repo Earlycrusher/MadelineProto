@@ -131,7 +131,10 @@ final class NewAuthKey implements SimpleSubscriber
             Assert::notNull($this->id, 'Auth key must not be null if temp auth key is not null');
             $this->tempId = substr(sha1($authKey, true), -8);
             $this->tempAuthKeyForHash = substr($authKey, 88, 32);
-            $this->connectionState->publish(ConnectionState::ENCRYPTED_NOT_INITED);
+            $this->connectionState->publish($this->isCdn 
+                ? ConnectionState::ENCRYPTED_NOT_INITED 
+                : ConnectionState::ENCRYPTED_NOT_BOUND
+            );
         }
     }
     /** @return list{string, string} */
@@ -183,16 +186,18 @@ final class NewAuthKey implements SimpleSubscriber
         $this->serverSalt = $salt;
     }
 
-    public function init(): void
-    {
-        Assert::eq($this->connectionState->getState(), ConnectionState::ENCRYPTED_NOT_INITED);
-        $state = $this->isCdn ? ConnectionState::ENCRYPTED : ConnectionState::ENCRYPTED_NOT_BOUND;
-        $this->connectionState->publish($state);
-    }
     public function bind(): void
     {
         Assert::eq($this->connectionState->getState(), ConnectionState::ENCRYPTED_NOT_BOUND);
-        $state = $this->isLoggedIn ? ConnectionState::ENCRYPTED_NOT_AUTHED : ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
+        $state = ConnectionState::ENCRYPTED_NOT_INITED;
+        $this->connectionState->publish($state);
+    }
+    public function init(): void
+    {
+        Assert::eq($this->connectionState->getState(), ConnectionState::ENCRYPTED_NOT_INITED);
+        $state = $this->isCdn 
+            ? ConnectionState::ENCRYPTED
+            : ($this->isLoggedIn ? ConnectionState::ENCRYPTED_NOT_AUTHED : ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN);
         $this->connectionState->publish($state);
     }
     public function authorize(): void
