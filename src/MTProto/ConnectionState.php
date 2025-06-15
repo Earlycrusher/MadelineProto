@@ -31,4 +31,18 @@ enum ConnectionState
     case ENCRYPTED_NOT_AUTHED_NO_LOGIN;
     case ENCRYPTED_NOT_AUTHED;
     case ENCRYPTED;
+
+    public function isEncrypted(): bool
+    {
+        return match ($this) {
+            self::UNENCRYPTED_MEDIA_WAITING_MAIN,
+            self::UNENCRYPTED_NO_PERMANENT,
+            self::UNENCRYPTED => false,
+            self::ENCRYPTED_NOT_INITED,
+            self::ENCRYPTED_NOT_BOUND,
+            self::ENCRYPTED_NOT_AUTHED_NO_LOGIN,
+            self::ENCRYPTED_NOT_AUTHED,
+            self::ENCRYPTED => true,
+        };
+    }
 }

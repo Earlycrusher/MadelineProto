@@ -30,6 +30,7 @@ use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
 use danog\MadelineProto\Settings\Connection as ConnectionSettings;
 use danog\MadelineProto\Stream\ContextIterator;
+use Random\Engine\Secure;
 use Revolt\EventLoop;
 use Webmozart\Assert\Assert;
 
@@ -117,7 +118,13 @@ final class DataCenterConnection implements SimpleSubscriber
     #[\Override]
     public function onSimpleStateChange($state): void
     {
-        $this->initAuthorization($state);
+        try {
+            $this->initAuthorization($state);
+        } catch (SecurityException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            throw new SecurityException("An error occurred while handling state transition to {$state->name} in DC {$this->datacenter}: ".$e->getMessage(), 0, $e);
+        }
     }
 
     /**
@@ -150,8 +157,11 @@ final class DataCenterConnection implements SimpleSubscriber
 
         // Skip old states in case of unexpected server-side abort back to the unencrypted state.
         if ($state !== $this->auth->connectionState->getState()) {
+            $logger->logger("Skipping outdated auth key transition to {$state->name} in DC {$this->datacenter}", Logger::NOTICE);
             return;
         }
+        $logger->logger("Handling auth key transition to {$state->name} in DC {$this->datacenter}", Logger::NOTICE);
+
 
         if ($state === ConnectionState::UNENCRYPTED_NO_PERMANENT) {
             Assert::false($this->auth->isMedia);
@@ -185,6 +195,7 @@ final class DataCenterConnection implements SimpleSubscriber
                 ),
                 'authMethod' => true,
             ]);
+            $this->auth->init();
         } elseif ($state === ConnectionState::ENCRYPTED_NOT_BOUND) {
             $expires_in = MTProto::PFS_DURATION;
             for ($retry_id_total = 1; $retry_id_total <= $this->API->settings->getAuth()->getMaxAuthTries(); $retry_id_total++) {
@@ -233,6 +244,8 @@ final class DataCenterConnection implements SimpleSubscriber
             $connection->methodCallAsyncRead('auth.importAuthorization', $e);
             $this->auth->authorize();
         }
+
+        $logger->logger("Finished auth key transition to {$state->name} in DC {$this->datacenter}", Logger::NOTICE);
     }
 
     /**

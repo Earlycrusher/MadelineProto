@@ -168,7 +168,7 @@ final class ReadLoop extends Loop
             $auth_key_id = $buffer->bufferRead(8);
             $auth = $this->shared->auth;
             if ($unencrypted = $auth_key_id === "\0\0\0\0\0\0\0\0") {
-                if ($this->shared->hasTempAuthKey()) {
+                if ($this->shared->auth->connectionState->getState()->isEncrypted()) {
                     throw new SecurityException("Got unencrypted message from encrypted socket!");
                 }
                 $message_id = Tools::unpackSignedLong($buffer->bufferRead(8));

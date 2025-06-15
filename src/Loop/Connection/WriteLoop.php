@@ -140,7 +140,7 @@ final class WriteLoop extends Loop implements Subscriber
     }
     public function unencryptedWriteLoop(): void
     {
-        if (0 !== ($queue = $this->connection->unencrypted_check_queue)->getCount()) {
+        if (0 !== ($queue = $this->connection->unencrypted_check_queue)->count()) {
             $this->connection->unencrypted_check_queue = new WeakMap;
             foreach ($queue as $msg => $_) {
                 // TODO: wait for actual re-queueing

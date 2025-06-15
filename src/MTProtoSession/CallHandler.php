@@ -163,9 +163,6 @@ trait CallHandler
             throw new Exception("Could not find method $method!");
         }
         $encrypted = $methodInfo['encrypted'];
-        if (!$encrypted && $this->shared->hasTempAuthKey()) {
-            $encrypted = true;
-        }
         $timeout = new TimeoutCancellation($this->drop ??= (float) $this->API->getSettings()->getRpc()->getRpcDropTimeout());
         $cancellation = $cancellation !== null
             ? new CompositeCancellation($cancellation, $timeout)

@@ -580,7 +580,7 @@ final class Connection
      * @param DataCenterConnection $extra Shared instance
      * @param int                  $id    Connection ID
      */
-    public function setExtra(DataCenterConnection $extra, Publisher $connectionState, int $datacenter, int $id): void
+    public function setExtra(DataCenterConnection $extra, int $datacenter, int $id): void
     {
         $this->shared = $extra;
         $this->id = $id;
