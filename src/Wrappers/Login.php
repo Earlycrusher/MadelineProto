@@ -30,6 +30,7 @@ use danog\MadelineProto\DataCenter;
 use danog\MadelineProto\Exception;
 use danog\MadelineProto\Lang;
 use danog\MadelineProto\Logger;
+use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\PermAuthKey;
 use danog\MadelineProto\MTProtoTools\PasswordCalculator;
 use danog\MadelineProto\RPCError\PasswordHashInvalidError;
@@ -271,15 +272,10 @@ trait Login
         }
         $dataCenterConnection = $this->datacenter->getDataCenterConnection($mainDcID);
 
+
         $this->logger->logger("Setting auth key in DC $mainDcID", Logger::NOTICE);
         $dataCenterConnection->auth->setAuthKey($auth_key);
-        $auth_key = new PermAuthKey($auth_key);
-        $auth_key->authorized(true);
-        $auth_key->setServerSalt(random_bytes(8));
-        $dataCenterConnection->auth->setPermAuthKey($auth_key);
-        $dataCenterConnection->auth->setTempAuthKey(null);
-        $dataCenterConnection->initAuthorization();
-
+        $dataCenterConnection->auth->connectionState->waitForState(ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN);
         $this->datacenter->currentDatacenter = $mainDcID;
         $this->authorized_dc = $mainDcID;
         $this->authorized = \danog\MadelineProto\API::LOGGED_IN;
@@ -310,7 +306,6 @@ trait Login
             throw new Exception(Lang::$current_lang['not_loggedIn']);
         }
         $this->fullGetSelf();
-        $this->authorized_dc = $this->datacenter->currentDatacenter;
         return [$this->datacenter->currentDatacenter, $this->datacenter->getDataCenterConnection($this->datacenter->currentDatacenter)->getPermAuthKey()->getAuthKey()];
     }
     /**

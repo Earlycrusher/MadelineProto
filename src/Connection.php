@@ -319,7 +319,6 @@ final class Connection
                 }
                 $this->handler->start();
 
-                EventLoop::queue($this->shared->initAuthorization(...));
                 return $this;
             }
             throw new AssertionError("Could not connect to DC {$this->datacenterId}!");

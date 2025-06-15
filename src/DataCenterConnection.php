@@ -224,6 +224,11 @@ final class DataCenterConnection implements Subscriber
             }
             throw new SecurityException('An error occurred while binding temporary and permanent authorization keys.');
         } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED) {
+            if ($this->API->authorized_dc === $this->datacenter) {
+                $this->auth->authorize();
+                return;
+            }
+
             foreach ($this->API->datacenter->getDataCenterConnections() as $authorized_dc_id => $authorized_socket) {
                 if ($this->API->authorized_dc !== null && $authorized_dc_id !== $this->API->authorized_dc) {
                     continue;
