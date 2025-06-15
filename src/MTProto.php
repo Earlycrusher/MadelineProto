@@ -1492,7 +1492,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         if ($this->authorized === API::LOGGED_IN
             && class_exists(VoIPServerConfigInternal::class)
             && !$this->authorization['user']['bot']
-            && $this->datacenter->getDataCenterConnection($this->loginState->getState()->authorized_dc)->hasTempAuthKey()) {
+            && $this->datacenter->getDataCenterConnection($this->loginState->getState()->authorizedDc)->hasTempAuthKey()) {
             $this->logger->logger('Fetching phone config...');
             VoIPServerConfig::updateDefault($this->methodCallAsyncRead('phone.getCallConfig', []));
         }
@@ -1503,7 +1503,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     public function getCdnConfig(): void
     {
         try {
-            foreach (($this->methodCallAsyncRead('help.getCdnConfig', [], $this->loginState->getState()->authorized_dc))['public_keys'] as $curkey) {
+            foreach (($this->methodCallAsyncRead('help.getCdnConfig', [], $this->loginState->getState()->authorizedDc))['public_keys'] as $curkey) {
                 $curkey = RSA::load($this->TL, $curkey['public_key']);
                 $this->cdn_rsa_keys[$curkey->fp] = $curkey;
             }
@@ -2074,7 +2074,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /** @internal */
     public function getPasswordSRP(string $password): array
     {
-        return (new PasswordCalculator($this->methodCallAsyncRead('account.getPassword', [], $this->loginState->getState()->authorized_dc)))->getCheckPassword($password);
+        return (new PasswordCalculator($this->methodCallAsyncRead('account.getPassword', [], $this->loginState->getState()->authorizedDc)))->getCheckPassword($password);
     }
     /**
      * Get debug information for var_dump.

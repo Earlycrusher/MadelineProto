@@ -26,6 +26,7 @@ use danog\MadelineProto\Exception;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\Loop\InternalLoop;
 use danog\MadelineProto\MTProto;
+use danog\MadelineProto\MTProto\LoginState;
 use danog\MadelineProto\PeerNotInDbException;
 use danog\MadelineProto\PTSException;
 use danog\MadelineProto\Reactive\Subscriber;
@@ -45,6 +46,8 @@ use danog\MadelineProto\Reactive\SimpleSubscriber;
  * @internal
  *
  * @author Daniil Gentili <daniil@daniil.it>
+ * 
+ * @implements SimpleSubscriber<LoginState>
  */
 final class UpdateLoop extends Loop implements SimpleSubscriber
 {
@@ -63,7 +66,7 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
      * Feed loop.
      */
     private ?FeedLoop $feeder = null;
-    private int $authorizedDc;
+    private ?int $authorizedDc;
     /**
      * Constructor.
      */
@@ -74,19 +77,24 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
     }
     public function __sleep(): array
     {
-        return ['channelId', 'API', 'feeder'];
+        return ['channelId', 'API', 'feeder', 'authorizedDc'];
     }
-    public function onAttach($initState): void
+    #[\Override]
+    public function onSimpleStateChange($state): void
     {
-        
+        $this->authorizedDc = $state->authorizedDc;
+        if ($state->authorizedDc !== null) {
+            $this->resume(true);
+        }
     }
+
     /**
      * Main loop.
      */
     #[\Override]
     public function loop(): ?float
     {
-        if (!$this->isLoggedIn()) {
+        if ($this->authorizedDc === null) {
             return self::PAUSE;
         }
         $this->feeder = $this->API->feeders[$this->channelId];
@@ -179,7 +187,7 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
                 $this->API->logger('Resumed and fetching normal difference...', Logger::ULTRA_VERBOSE);
                 do {
                     try {
-                        $difference = $this->API->methodCallAsyncRead('updates.getDifference', ['pts' => $state->pts(), 'date' => $state->date(), 'qts' => $state->qts(), 'userRelated' => true], $this->API->authorized_dc);
+                        $difference = $this->API->methodCallAsyncRead('updates.getDifference', ['pts' => $state->pts(), 'date' => $state->date(), 'qts' => $state->qts(), 'userRelated' => true], $this->authorizedDc);
                         break;
                     } catch (TimeoutError) {
                         delay(1.0);

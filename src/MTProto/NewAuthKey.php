@@ -22,6 +22,7 @@ namespace danog\MadelineProto\MTProto;
 
 use danog\MadelineProto\API;
 use danog\MadelineProto\Reactive\Publisher;
+use danog\MadelineProto\Reactive\SimpleSubscriber;
 use danog\MadelineProto\Reactive\Subscriber;
 use Dba\Connection;
 use Webmozart\Assert\Assert;
@@ -31,7 +32,7 @@ use Webmozart\Assert\Assert;
  *
  * @internal
  */
-final class NewAuthKey implements Subscriber
+final class NewAuthKey implements SimpleSubscriber
 {
     private ?string $authKey = null;
     private ?string $id = null;
@@ -65,23 +66,23 @@ final class NewAuthKey implements Subscriber
     }
 
     #[\Override]
-    public function onAttach($initState): void
+    public function onSimpleStateChange($state): void
     {
-        if ($initState instanceof ConnectionState) {
+        if ($state instanceof ConnectionState) {
             if ($this->connectionState->getState() === ConnectionState::UNENCRYPTED_MEDIA_WAITING_MAIN) {
-                if ($initState === ConnectionState::ENCRYPTED_NOT_BOUND) {
+                if ($state === ConnectionState::ENCRYPTED_NOT_BOUND) {
                     Assert::notNull($this->mainKey);
                     $this->setAuthKey($this->mainKey->authKey);
                 }
             } else {
-                if ($initState === ConnectionState::UNENCRYPTED_NO_PERMANENT) {
+                if ($state === ConnectionState::UNENCRYPTED_NO_PERMANENT) {
                     $this->setAuthKey(null);
                 }
             }
             return;
         }
 
-        $this->isLoggedIn = $initState === API::LOGGED_IN;
+        $this->isLoggedIn = $state === API::LOGGED_IN;
         if ($this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED
             || $this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
         ) {
@@ -90,12 +91,6 @@ final class NewAuthKey implements Subscriber
             ) : ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
             $this->connectionState->publish($state);
         }
-    }
-
-    #[\Override]
-    public function onStateChange($prevState, $state): void
-    {
-        $this->onAttach($state);
     }
 
     public function setAuthKey(?string $authKey): void

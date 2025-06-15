@@ -23,21 +23,15 @@ namespace danog\MadelineProto\Reactive;
  *
  * @template T
  * 
- * @implements WrappedSubscriber<T>
+ * @implements Subscriber<T>
  */
-final class SimpleSubscriberAdaptor implements WrappedSubscriber
+final class SimpleSubscriberAdaptor implements Subscriber
 {
     public function __construct(
         /** @var SimpleSubscriber<T> $subscriber */
         public readonly SimpleSubscriber $subscriber
     )
     {
-    }
-
-    #[\Override]
-    public function getSubscriber(): SimpleSubscriber
-    {
-        return $this->subscriber;
     }
 
     #[\Override]

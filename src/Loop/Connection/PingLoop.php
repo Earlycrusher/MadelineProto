@@ -24,6 +24,7 @@ use danog\Loop\Loop;
 use danog\MadelineProto\Connection;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\MTProto\ConnectionState;
+use danog\MadelineProto\Reactive\SimpleSubscriber;
 use danog\MadelineProto\Reactive\Subscriber;
 use Revolt\EventLoop;
 use Throwable;
@@ -34,13 +35,16 @@ use Throwable;
  * @internal
  *
  * @author Daniil Gentili <daniil@daniil.it>
+ * 
+ * @implements SimpleSubscriber<ConnectionState>
  */
-final class PingLoop extends Loop implements Subscriber
+final class PingLoop extends Loop implements SimpleSubscriber
 {
     use Common {
         __construct as constructCommon;
     }
     private int $timeoutDisconnect;
+    private bool $mustPause;
     /**
      * Constructor function.
      */
@@ -51,24 +55,24 @@ final class PingLoop extends Loop implements Subscriber
         $this->timeoutDisconnect = $timeout + 15;
         $connection->getShared()->auth->connectionState->subscribe($this);
     }
-    public function onAttach($initState): void
+    #[\Override]
+    public function onSimpleStateChange($state): void
     {
-        if ($initState === ConnectionState::ENCRYPTED) {
+        if ($state === ConnectionState::ENCRYPTED) {
+            $this->mustPause = false;
             $this->resume(true);
+        } else {
+            $this->mustPause = true;
         }
     }
-    public function onStateChange($prevState, $state): void
-    {
-        $this->onAttach($state);
-    }
+
     /**
      * Main loop.
      */
     #[\Override]
     public function loop(): ?float
     {
-        if (!$this->shared->hasTempAuthKey()) {
-            $this->API->logger("Waiting for temp key in {$this}", Logger::LEVEL_ULTRA_VERBOSE);
+        if ($this->mustPause) {
             return self::PAUSE;
         }
 

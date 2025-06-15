@@ -28,6 +28,8 @@ use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProto\NewAuthKey;
 use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\Actor;
+use danog\MadelineProto\Reactive\SimpleSubscriber;
+use danog\MadelineProto\Reactive\SimpleSubscriberAdaptor;
 use danog\MadelineProto\Reactive\Subscriber;
 use danog\MadelineProto\RPCError\DcIdInvalidError;
 use danog\MadelineProto\Settings\Connection as ConnectionSettings;
@@ -41,8 +43,9 @@ use function count;
 /**
  * Datacenter connection.
  * @internal
+ * @implements SimpleSubscriber<ConnectionState>
  */
-final class DataCenterConnection implements Subscriber
+final class DataCenterConnection implements SimpleSubscriber
 {
     public const READ_WEIGHT = 1;
     public const READ_WEIGHT_MEDIA = 5;
@@ -110,17 +113,11 @@ final class DataCenterConnection implements Subscriber
             $this->API->isCdn($this->datacenter),
             $this->API->loginState,
         );
-        $this->auth->connectionState->subscribe(Actor::from($this));
+        $this->auth->connectionState->subscribe($this, true);
     }
 
     #[\Override]
-    public function onAttach($initState): void
-    {
-        $this->initAuthorization($initState);
-    }
-
-    #[\Override]
-    public function onStateChange($prevState, $state): void
+    public function onSimpleStateChange($state): void
     {
         $this->initAuthorization($state);
     }

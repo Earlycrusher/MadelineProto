@@ -29,11 +29,11 @@ final class LoginState
     public function __construct(
         /** @var API::NOT_LOGGED_IN|API::WAITING_*|API::LOGGED_IN|API::LOGGED_OUT */
         public readonly int $state,
-        public readonly ?int $authorized_dc,
+        public readonly ?int $authorizedDc,
     )
     {
         if ($state === API::LOGGED_IN) {
-            Assert::notNull($authorized_dc, 'If state is LOGGED_IN, authorized_dc must not be null');
+            Assert::notNull($authorizedDc, 'If state is LOGGED_IN, authorizedDc must not be null');
         }
     }
 }

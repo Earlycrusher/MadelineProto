@@ -23,34 +23,17 @@ use SplQueue;
 use WeakMap;
 use Webmozart\Assert\Assert;
 
-/** @template T */
-final class Actor extends Loop implements WrappedSubscriber {
+/** 
+ * @template T
+ * 
+ * @implements Subscriber<T>
+ */
+final class Actor extends Loop implements Subscriber {
 
     /** @var SplQueue<list{T}|list{T, T}> */
     private readonly SplQueue $queue;
-    /** @var WeakMap<Subscriber, self> */
-    private static WeakMap $storage;
 
-    /** 
-     * @template TT
-     * @param Subscriber<TT> $subscriber
-     * @return self<TT>
-     */
-    public static function from(Subscriber $subscriber): self
-    {
-        if ($subscriber instanceof self) {
-            return $subscriber;
-        }
-        /** @var WeakMap<Subscriber, self> */
-        self::$storage ??= new WeakMap;
-        if (isset(self::$storage[$subscriber])) {
-            return self::$storage[$subscriber];
-        }
-        self::$storage[$subscriber] = $s = new self($subscriber);
-        return $s;
-    }
-
-    private function __construct(
+    public function __construct(
         /** @var Subscriber<T> $subscriber */
         private readonly Subscriber $subscriber
     )
@@ -58,21 +41,6 @@ final class Actor extends Loop implements WrappedSubscriber {
         /** @var SplQueue<list{T}|list{T, T}> */
         $this->queue = new SplQueue;
         $this->queue->setIteratorMode(SplQueue::IT_MODE_DELETE);
-    }
-
-    #[\Override]
-    public function getSubscriber(): BaseSubscriber
-    {
-        if ($this->subscriber instanceof WrappedSubscriber) {
-            return $this->subscriber->getSubscriber();
-        }
-        return $this->subscriber;
-    }
-
-    public function __wakeup()
-    {
-        self::$storage ??= new WeakMap;
-        self::$storage[$this->subscriber] = $this;
     }
 
     #[\Override]

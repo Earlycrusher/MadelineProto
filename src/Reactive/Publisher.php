@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace danog\MadelineProto\Reactive;
 
 use Amp\Cancellation;
+use Webmozart\Assert\Assert;
 use SplObjectStorage;
 use WeakMap;
 
@@ -71,19 +72,19 @@ final class Publisher
     }
 
     /** @param BaseSubscriber<T> $subscriber */
-    public function subscribe(BaseSubscriber $subscriber): void
+    public function subscribe(BaseSubscriber $subscriber, bool $actor = false): void
     {
-        if ($subscriber instanceof WrappedSubscriber) {
-            $subscriberK = $subscriber->getSubscriber();
+        if ($subscriber instanceof SimpleSubscriber) {
+            $subscriberK = $subscriber;
+            $subscriber = new SimpleSubscriberAdaptor($subscriber);
         } else {
+            Assert::isInstanceOf($subscriber, Subscriber::class);
             $subscriberK = $subscriber;
         }
-
-        if ($subscriber instanceof SimpleSubscriber) {
-            $subscriber = new SimpleSubscriberAdaptor($subscriber);
-        }
-
         if (!isset($this->subscribers[$subscriberK])) {
+            if ($actor) {
+                $subscriber = new Actor($subscriber);
+            }
             $this->subscribers[$subscriberK] = $subscriber;
             $subscriber->onAttach($this->state);
         }
@@ -101,6 +102,7 @@ final class Publisher
         }
     }
 
+    /** @param T $state */
     public function waitForState($state, ?Cancellation $cancellation = null): void {
         if ($state === $this->state) {
             return;
