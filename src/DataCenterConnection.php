@@ -184,15 +184,15 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
                     [
                         'api_id' => $this->API->settings->getAppInfo()->getApiId(),
                         'api_hash' => $this->API->settings->getAppInfo()->getApiHash(),
-                        'device_model' => !$connection->isCDN() ? $this->API->settings->getAppInfo()->getDeviceModel() : 'n/a',
-                        'system_version' => !$connection->isCDN() ? $this->API->settings->getAppInfo()->getSystemVersion() : 'n/a',
+                        'device_model' => !$this->auth->isCdn ? $this->API->settings->getAppInfo()->getDeviceModel() : 'n/a',
+                        'system_version' => !$this->auth->isCdn ? $this->API->settings->getAppInfo()->getSystemVersion() : 'n/a',
                         'app_version' => $this->API->settings->getAppInfo()->getAppVersion(),
                         'system_lang_code' => $this->API->settings->getAppInfo()->getSystemLangCode(),
                         'lang_code' => $this->API->settings->getAppInfo()->getLangCode(),
                         'lang_pack' => $this->API->settings->getAppInfo()->getLangPack(),
                         'proxy' => $connection->getInputClientProxy(),
                         'query' => $this->API->getTL()->serializeMethod(
-                            $connection->isCDN() ? 'ping' : 'help.getConfig',
+                            $this->auth->isCdn ? 'ping' : 'help.getConfig',
                             []
                         ),
                     ]
