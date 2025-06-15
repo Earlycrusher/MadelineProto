@@ -79,7 +79,11 @@ final class SeqLoop extends Loop implements SimpleSubscriber
     {
         $this->mustPause = $state->state !== API::LOGGED_IN;
         if (!$this->mustPause) {
-            $this->resume(true);
+            if ($this->isRunning()) {
+                $this->resume(true);
+            } else {
+                $this->start();
+            }
         }
     }
     /**

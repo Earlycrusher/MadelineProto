@@ -1179,9 +1179,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             $this->cacheFullDialogs();
             if ($this->authorized === API::LOGGED_IN) {
                 $this->logger->logger("Obtaining updates after deserialization...", Logger::NOTICE);
-                $this->updaters[UpdateLoop::GENERIC]->resume();
             }
-            $this->updaters[UpdateLoop::GENERIC]->start();
 
             foreach ($this->broadcasts as $broadcast) {
                 $broadcast->resume();

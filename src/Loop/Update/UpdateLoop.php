@@ -82,9 +82,12 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
     #[\Override]
     public function onSimpleStateChange($state): void
     {
-        $this->authorizedDc = $state->authorizedDc;
-        if ($state->authorizedDc !== null) {
-            $this->resume(true);
+        if (null !== $this->authorizedDc = $state->authorizedDc) {
+            if ($this->isRunning()) {
+                $this->resume(true);
+            } else {
+                $this->start();
+            }
         }
     }
 

@@ -218,9 +218,10 @@ final class DataCenterConnection implements SimpleSubscriber
                 }
             }
             throw new SecurityException('An error occurred while binding temporary and permanent authorization keys.');
-        } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED
-            && null !== $authed = $this->API->loginState->getState()->authorizedDc
-        ) {
+        } elseif ($state === ConnectionState::ENCRYPTED_NOT_AUTHED) {
+            $authed = $this->API->loginState->getState()->authorizedDc;
+            Assert::notNull($authed);
+
             $logger->logger('Trying to copy authorization from DC '.$authed.' to DC '.$this->datacenter);
             $authorized_socket =  $this->API->datacenter->getDataCenterConnection($authed);
             $authorized_socket->waitGetConnection();

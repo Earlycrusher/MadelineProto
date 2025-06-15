@@ -60,7 +60,11 @@ final class PingLoop extends Loop implements SimpleSubscriber
     {
         if ($state === ConnectionState::ENCRYPTED) {
             $this->mustPause = false;
-            $this->resume(true);
+            if ($this->isRunning()) {
+                $this->resume(true);
+            } else {
+                $this->start();
+            }
         } else {
             $this->mustPause = true;
         }
