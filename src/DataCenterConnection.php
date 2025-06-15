@@ -42,7 +42,7 @@ use function count;
  * Datacenter connection.
  * @internal
  */
-final class DataCenterConnection implements JsonSerializable, Subscriber
+final class DataCenterConnection implements Subscriber
 {
     public const READ_WEIGHT = 1;
     public const READ_WEIGHT_MEDIA = 5;
@@ -71,18 +71,9 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
      */
     private array $availableConnections = [];
     /**
-     * Main API instance.
-     *
-     */
-    private MTProto $API;
-    /**
      * Connection contexts.
      */
     private ?ContextIterator $ctx = null;
-    /**
-     * DC ID.
-     */
-    private int $datacenter;
     /**
      * Loop to keep weights at sane value.
      */
@@ -108,7 +99,7 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
      */
     private bool $needsReconnect = false;
 
-    public function __construct()
+    public function __construct(private readonly MTProto $API, private readonly int $datacenter)
     {
         $this->__wakeup();
     }
@@ -517,15 +508,8 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
         }
         $this->availableConnections[$x] += $writing ? -$this->decWrite : $this->decWrite;
     }
-    /**
-     * Set main instance.
-     *
-     * @param MTProto $API Main instance
-     */
-    public function setExtra(MTProto $API, int $datacenter, ContextIterator $ctx): void
+    public function setCtx(ContextIterator $ctx): void
     {
-        $this->datacenter = $datacenter;
-        $this->API = $API;
         $this->ctx = $ctx;
     }
     /**
@@ -548,22 +532,5 @@ final class DataCenterConnection implements JsonSerializable, Subscriber
     public function getGenericSettings(): Settings
     {
         return $this->API->getSettings();
-    }
-    /**
-     * JSON serialize function.
-     */
-    #[\Override]
-    public function jsonSerialize(): array
-    {
-        return ['auth' => $this->auth];
-    }
-    /**
-     * Sleep function.
-     *
-     * @internal
-     */
-    public function __sleep(): array
-    {
-        return ['auth'];
     }
 }

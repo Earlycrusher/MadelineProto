@@ -388,8 +388,8 @@ final class DataCenter
                 $ctxs = $this->generateContexts($dc);
 
                 $this->API->logger("Connecting to DC {$dc}", Logger::WARNING);
-                $this->sockets[$dc] ??= new DataCenterConnection();
-                $this->sockets[$dc]->setExtra($this->API, $dc, $ctxs);
+                $this->sockets[$dc] ??= new DataCenterConnection($this->API, $dc);
+                $this->sockets[$dc]->setCtx($ctxs);
                 $this->sockets[$dc]->connect();
             } finally {
                 EventLoop::queue($lock->release(...));
