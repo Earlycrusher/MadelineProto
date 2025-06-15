@@ -224,7 +224,7 @@ trait ResponseHandler
                     $this->time_delta = ($message->getMsgId() >> 32) - time();
                     $this->API->logger('Set time delta to ' . $this->time_delta, Logger::WARNING);
                     $this->API->resetMTProtoSession("time delta update");
-                    $this->shared->auth->setTempAuthKey(null);
+                    $this->shared->auth->setTempAuthKey(null, null);
                     $this->methodRecall($request, $this->datacenter);
                     return;
             }
@@ -364,7 +364,7 @@ trait ResponseHandler
                         return null;
                     case 'AUTH_KEY_PERM_EMPTY':
                         $this->API->logger('Temporary auth key not bound, resetting temporary auth key...', Logger::ERROR);
-                        $this->shared->auth->setTempAuthKey(null);
+                        $this->shared->auth->setTempAuthKey(null, null);
                         $this->methodRecall($request, $this->datacenter);
                         return null;
                 }

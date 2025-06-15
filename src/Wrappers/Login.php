@@ -264,12 +264,11 @@ trait Login
         $dataCenterConnection = $this->datacenter->getDataCenterConnection($mainDcID);
 
         $this->logger->logger("Setting auth key in DC $mainDcID", Logger::NOTICE);
-        $dataCenterConnection->auth->setAuthKey($auth_key);
+        $dataCenterConnection->auth->setAuthKey($auth_key['auth_key']);
         $dataCenterConnection->auth->connectionState->waitForState(ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN);
-        $this->datacenter->currentDatacenter = $mainDcID;
         $this->loginState->publish(new LoginState(API::LOGGED_IN, $mainDcID));
 
-        $res = ($this->fullGetSelf());
+        $res = $this->fullGetSelf();
         $callbacks = [$this, $this->referenceDatabase, $this->peerDatabase];
         if (!($this->authorization['user']['bot'] ?? false)) {
             $callbacks[] = $this->minDatabase;

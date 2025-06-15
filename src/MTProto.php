@@ -1385,7 +1385,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
                 $socket->resetSession("resetMTProtoSession: $why");
             }
             if ($auth_key) {
-                $socket->auth->setTempAuthKey(null);
+                $socket->auth->setTempAuthKey(null, null);
             }
         }
     }

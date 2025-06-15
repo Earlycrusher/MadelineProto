@@ -291,7 +291,7 @@ final class Connection
                         $this->flush(); // Flush acks
                     }
                 }, "Handler loop");
-                if (!isset($this->pinger) && !$this->shared->auth->isMedia && !$this->shared->auth->isMedia && !$this->isHttp()) {
+                if (!isset($this->pinger) && !$this->shared->auth->isMedia && !$this->shared->auth->isCdn && !$this->isHttp()) {
                     $this->pinger = new PingLoop($this);
                 }
                 foreach ($this->unencrypted_new_outgoing as $message) {

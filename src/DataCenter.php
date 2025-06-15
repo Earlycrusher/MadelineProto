@@ -100,7 +100,7 @@ final class DataCenter
                 if (\is_string($dc)) {
                     continue;
                 }
-                $socket->setExtra($this->API, $dc, $this->generateContexts($dc));
+                $socket->setCtx($this->generateContexts($dc));
                 $socket->reconnect();
             }
             $this->getSettings()->applyChanges();
