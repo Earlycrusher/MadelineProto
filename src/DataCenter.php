@@ -68,35 +68,36 @@ use Revolt\EventLoop;
 final class DataCenter
 {
     /**
+     * @deprecated
+     * @var array<int, DataCenterConnection>
+     */
+    private array $sockets = [];
+
+    /**
      * All socket connections to DCs.
      *
      * @var array<int, DataCenterConnection>
      */
-    private array $sockets = [];
+    private array $list = [];
     /**
      * Current DC ID.
      */
     public int $currentDatacenter = 1;
-    /**
-     * Main instance.
-     */
-    private MTProto $API;
     private DoHWrapper $dohWrapper;
 
     private LocalKeyedMutex $connectMutex;
     /**
      * Constructor function.
      */
-    public function __construct(MTProto $API)
+    public function __construct(private readonly MTProto $API)
     {
         $this->connectMutex = new LocalKeyedMutex;
-        $this->API = $API;
         if ($this->getSettings()->hasChanged()) {
             unset($this->dohWrapper);
         }
         $this->dohWrapper ??= new DoHWrapper($API);
         if ($this->getSettings()->hasChanged()) {
-            foreach ($this->sockets as $dc => $socket) {
+            foreach ($this->list as $dc => $socket) {
                 if (\is_string($dc)) {
                     continue;
                 }
@@ -109,8 +110,17 @@ final class DataCenter
 
     public function __sleep()
     {
-        return isset($this->API) ? ['sockets', 'currentDatacenter', 'API'] : ['sockets', 'currentDatacenter'];
+        return ['list', 'currentDatacenter'];
     }
+    public function __wakeup()
+    {
+        foreach ($this->sockets as $dc => $socket) {
+            $this->list[$dc] ??= new DataCenterConnection($this->API, $dc);
+            $this->list[$dc]->importFromLegacy($socket);
+        }
+        $this->sockets = [];
+    }
+
     public static function isTest(int $dc): bool
     {
         return abs($dc) > 10000;
@@ -377,28 +387,29 @@ final class DataCenter
      */
     public function getDataCenterConnection(int $dc): DataCenterConnection
     {
-        if (!isset($this->sockets[$dc]) || !$this->sockets[$dc]->hasCtx()) {
+        if (!isset($this->list[$dc]) || !$this->list[$dc]->hasCtx()) {
             $this->API->logger("Acquiring connect lock for $dc!", Logger::VERBOSE);
             $lock = $this->connectMutex->acquire((string) $dc);
             try {
-                if (isset($this->sockets[$dc]) && $this->sockets[$dc]->hasCtx()) {
-                    return $this->sockets[$dc];
+                if (isset($this->list[$dc]) && $this->list[$dc]->hasCtx()) {
+                    return $this->list[$dc];
                 }
                 $ctxs = $this->generateContexts($dc);
 
                 $this->API->logger("Connecting to DC {$dc}", Logger::WARNING);
-                $this->sockets[$dc] ??= new DataCenterConnection($this->API, $dc);
-                $this->sockets[$dc]->setCtx($ctxs);
-                $this->sockets[$dc]->connect();
+                $this->list[$dc] ??= new DataCenterConnection($this->API, $dc);
+                $this->list[$dc]->setCtx($ctxs);
+                $this->list[$dc]->connect();
+                $this->list[$dc]->auth->connectionState->wakeup();
             } finally {
                 EventLoop::queue($lock->release(...));
             }
         }
-        return $this->sockets[$dc];
+        return $this->list[$dc];
     }
     public function has(int $dc): bool
     {
-        if (isset($this->sockets[$dc])) {
+        if (isset($this->list[$dc])) {
             return true;
         }
         $test = $this->getSettings()->getTestMode() ? 'test' : 'main';
@@ -412,6 +423,6 @@ final class DataCenter
      */
     public function getDataCenterConnections(): array
     {
-        return $this->sockets;
+        return $this->list;
     }
 }

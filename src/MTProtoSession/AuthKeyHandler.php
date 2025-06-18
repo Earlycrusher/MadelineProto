@@ -93,14 +93,19 @@ trait AuthKeyHandler
                  * ***********************************************************************
                  * Find our key in the server_public_key_fingerprints vector
                  */
-                foreach ($this->API->getRsaKeys($test, $cdn) as $curkey) {
-                    if (\in_array($curkey->fp, $ResPQ['server_public_key_fingerprints'], true)) {
-                        $key = $curkey;
+                $fps = $ResPQ['server_public_key_fingerprints'];
+
+                $key = $this->API->findRsaKey($fps, $test, $cdn);
+                if (!$key) {
+                    if ($cdn) {
+                        $this->API->getCdnConfig();
+                        $key = $this->API->findRsaKey($fps, $test, $cdn);
+                    }
+                    if (!$key) {
+                        throw new SecurityException("Couldn't find any of our keys in the server_public_key_fingerprints vector.");
                     }
                 }
-                if (!isset($key)) {
-                    throw new SecurityException("Couldn't find any of our keys in the server_public_key_fingerprints vector.");
-                }
+
                 $pq_bytes = $ResPQ['pq'];
                 $server_nonce = $ResPQ['server_nonce'];
                 /*
@@ -239,7 +244,7 @@ trait AuthKeyHandler
                  *         int            $server_time
                  * ]
                  */
-                $server_DH_inner_data = $this->API->getTL()->deserialize($answer, ['type' => '']);
+                $server_DH_inner_data = $this->API->getTL()->deserialize($answer, ['type' => '', 'encrypted' => false, 'connection' => null]);
                 /*
                  * ***********************************************************************
                  * Do some checks
@@ -389,7 +394,7 @@ trait AuthKeyHandler
                     }
                 }
             } catch (SecurityException|Exception|RPCErrorException $e) {
-                $this->API->logger("An exception occurred while generating the authorization key in DC {$this->datacenter}: ".$e->getMessage().' in '.basename($e->getFile(), '.php').' on line '.$e->getLine().'. Retrying...', Logger::WARNING);
+                $this->API->logger("An exception occurred while generating the authorization key in DC {$this->datacenter}: ".$e.' in '.basename($e->getFile(), '.php').' on line '.$e->getLine().'. Retrying...', Logger::WARNING);
                 $this->reconnect();
             } catch (Throwable $e) {
                 $this->API->logger("An exception occurred while generating the authorization key in DC {$this->datacenter}: ".$e.PHP_EOL.' Retrying (try number '.$retry_id_total.')...', Logger::WARNING);

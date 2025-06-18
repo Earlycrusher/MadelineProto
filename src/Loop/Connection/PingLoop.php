@@ -23,6 +23,7 @@ namespace danog\MadelineProto\Loop\Connection;
 use danog\Loop\Loop;
 use danog\MadelineProto\Connection;
 use danog\MadelineProto\MTProto\ConnectionState;
+use danog\MadelineProto\Reactive\EphemeralSubscriber;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
 use Revolt\EventLoop;
 use Throwable;
@@ -36,7 +37,7 @@ use Throwable;
  *
  * @implements SimpleSubscriber<ConnectionState>
  */
-final class PingLoop extends Loop implements SimpleSubscriber
+final class PingLoop extends Loop implements SimpleSubscriber, EphemeralSubscriber
 {
     use Common {
         __construct as constructCommon;

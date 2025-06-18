@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace danog\MadelineProto\Reactive;
 
 use Amp\Cancellation;
+use AssertionError;
 use SplObjectStorage;
 use WeakMap;
 use Webmozart\Assert\Assert;
@@ -32,6 +33,7 @@ final class Publisher
 {
     /** @var WeakMap<BaseSubscriber<T>, Subscriber<T>> */
     private WeakMap $subscribers;
+    private bool $wokeup = false;
     /**
      * @param T $state
      */
@@ -39,6 +41,7 @@ final class Publisher
         private mixed $state
     ) {
         $this->subscribers = new WeakMap;
+        $this->wokeup = true;
     }
 
     /** @return T */
@@ -49,30 +52,40 @@ final class Publisher
 
     public function __serialize(): array
     {
-        /** @var SplObjectStorage<BaseSubscriber<T>, Subscriber<T>>  */
-        $subscribers = new SplObjectStorage;
+        $subscribers = [];
         foreach ($this->subscribers as $subscriber => $v) {
-            $subscribers[$subscriber] = $v;
+            if ($subscriber instanceof EphemeralSubscriber) {
+                continue;
+            }
+            $subscribers []= [$subscriber, $v];
         }
         return ['state' => $this->state, 'subscribers' => $subscribers];
     }
 
     /**
-     * @param array{state: T, subscribers: SplObjectStorage<BaseSubscriber<T>, Subscriber<T>>} $data
+     * @param array{state: T, subscribers: list<{BaseSubscriber<T>, Subscriber<T>}>} $data
      */
     public function __unserialize(array $data): void
     {
         $this->state = $data['state'];
         /** @var WeakMap<BaseSubscriber<T>, Subscriber<T>>  */
         $this->subscribers = new WeakMap;
-        foreach ($data['subscribers'] as $subscriber => $v) {
+        foreach ($data['subscribers'] as [$subscriber, $v]) {
             $this->subscribers[$subscriber] = $v;
-            $subscriber->onAttach($this->state);
+        }
+    }
+
+    public function wakeup(): void {
+        if (!$this->wokeup) {
+            $this->wokeup = true;
+            foreach ($this->subscribers as $v) {
+                $v->onAttach($this->state);
+            }
         }
     }
 
     /** @param BaseSubscriber<T> $subscriber */
-    public function subscribe(BaseSubscriber $subscriber, bool $actor = false): void
+    public function subscribe(BaseSubscriber $subscriber): void
     {
         if ($subscriber instanceof SimpleSubscriber) {
             $subscriberK = $subscriber;
@@ -82,9 +95,7 @@ final class Publisher
             $subscriberK = $subscriber;
         }
         if (!isset($this->subscribers[$subscriberK])) {
-            if ($actor) {
-                $subscriber = new Actor($subscriber);
-            }
+            $subscriber = new Actor($subscriber);
             $this->subscribers[$subscriberK] = $subscriber;
             $subscriber->onAttach($this->state);
         }
@@ -93,7 +104,7 @@ final class Publisher
     /** @param T $state */
     public function publish($state): void
     {
-        if ($state !== $this->state) {
+        if ($state != $this->state) {
             $prev = $this->state;
             foreach ($this->subscribers as $subscriber) {
                 $subscriber->onStateChange($prev, $state);

@@ -231,7 +231,7 @@ trait ResponseHandler
             $request->reply(static fn () => RPCErrorException::make('Received bad_msg_notification: ' . MTProto::BAD_MSG_ERROR_CODES[$response['error_code']], $response['error_code'], $request->constructor));
             return;
         } elseif ($constructor === 'auth.authorization') {
-            $this->API->processAuthorization($response, $this->datacenter);
+            EventLoop::queue($this->API->processAuthorization(...), $response, $this->datacenter);
         } elseif ($request->userRelated) {
             $this->API->loginState->publish(new LoginState(API::LOGGED_IN, $this->datacenter));
         }

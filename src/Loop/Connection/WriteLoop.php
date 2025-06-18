@@ -31,6 +31,7 @@ use danog\MadelineProto\MTProto\Container;
 use danog\MadelineProto\MTProto\LinkedList;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProtoTools\Crypt;
+use danog\MadelineProto\Reactive\EphemeralSubscriber;
 use danog\MadelineProto\Reactive\Subscriber;
 use danog\MadelineProto\Tools;
 use Revolt\EventLoop;
@@ -45,7 +46,7 @@ use WeakMap;
  *
  * @implements Subscriber<ConnectionState>
  */
-final class WriteLoop extends Loop implements Subscriber
+final class WriteLoop extends Loop implements Subscriber, EphemeralSubscriber
 {
     private const MAX_COUNT = 1020;
     private const MAX_SIZE = 1 << 15;

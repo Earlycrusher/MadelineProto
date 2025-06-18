@@ -547,7 +547,7 @@ final class SecretChatController implements Stringable
                 $this->mtproto = 2;
             }
         }
-        $deserialized = $this->API->getTL()->deserialize($message_data, ['type' => '']);
+        $deserialized = $this->API->getTL()->deserialize($message_data, ['type' => '', 'encrypted' => true, 'connection' => null]);
         $this->ttr--;
         if (($this->ttr <= 0 || time() - $this->updated > 7 * 24 * 60 * 60) && $this->rekeyState === RekeyState::IDLE) {
             $this->rekey();

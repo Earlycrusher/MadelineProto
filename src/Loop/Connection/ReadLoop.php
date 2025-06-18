@@ -237,7 +237,7 @@ final class ReadLoop extends Loop
             $this->API->logger('Received payload from DC '.$this->datacenter, Logger::ULTRA_VERBOSE);
 
             try {
-                $deserialized = $this->API->getTL()->deserialize($message_data, ['type' => '', 'connection' => $this->connection]);
+                $deserialized = $this->API->getTL()->deserialize($message_data, ['type' => '', 'connection' => $this->connection, 'encrypted' => !$unencrypted]);
             } catch (\Throwable $e) {
                 Logger::log('Error during deserializing message (base64): ' .  base64_encode($message_data), Logger::ERROR);
                 throw $e;

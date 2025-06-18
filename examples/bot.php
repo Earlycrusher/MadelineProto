@@ -348,7 +348,7 @@ $settings->getLogger()->setLevel(Logger::LEVEL_ULTRA_VERBOSE);
 // $settings->getMetrics()->setReturnMetricsFromStartAndLoop(true);
 
 // For users or bots
-MyEventHandler::startAndLoop('botte.madeline', $settings);
+MyEventHandler::startAndLoop('bot.madeline', $settings);
 
 // For bots only
 // MyEventHandler::startAndLoopBot('bot.madeline', 'bot token', $settings);

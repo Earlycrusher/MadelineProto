@@ -26,6 +26,7 @@ use danog\MadelineProto\Loop\Generic\PeriodicLoopInternal;
 use danog\MadelineProto\MTProto\ConnectionState;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
 use danog\MadelineProto\MTProto\NewAuthKey;
+use danog\MadelineProto\MTProto\PermAuthKey;
 use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
 use danog\MadelineProto\Settings\Connection as ConnectionSettings;
@@ -46,6 +47,10 @@ final class DataCenterConnection implements SimpleSubscriber
     public const READ_WEIGHT = 1;
     public const READ_WEIGHT_MEDIA = 5;
     public const WRITE_WEIGHT = 10;
+
+    /** @deprecated */
+    private ?PermAuthKey $permAuthKey;
+
     /**
      * Promise for connection.
      *
@@ -100,23 +105,24 @@ final class DataCenterConnection implements SimpleSubscriber
 
     public function __construct(private readonly MTProto $API, private readonly int $datacenter)
     {
-        $this->__wakeup();
-    }
-    public function __sleep()
-    {
-        return ['auth', 'API', 'datacenter'];
-    }
-    public function __wakeup(): void
-    {
         $media = DataCenter::isMedia($this->datacenter);
-        $this->auth ??= new NewAuthKey(
+        $this->auth = new NewAuthKey(
             $media,
             $this->API->isCdn($this->datacenter),
             $this->datacenter,
             $this->API->loginState,
             $media ? $this->API->datacenter->getDataCenterConnection(-$this->datacenter)->auth : null
         );
-        $this->auth->connectionState->subscribe($this, true);
+        $this->auth->connectionState->subscribe($this);
+    }
+
+    public function importFromLegacy(self $legacy): void {
+        $this->auth->setAuthKey($legacy->permAuthKey?->getAuthKey());
+    }
+
+    public function __sleep()
+    {
+        return ['auth', 'API', 'datacenter'];
     }
 
     #[\Override]

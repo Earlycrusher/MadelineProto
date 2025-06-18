@@ -447,17 +447,24 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
 
     /**
      * @internal
-     * @return array<RSA>
      */
-    public function getRsaKeys(bool $test, bool $cdn): array
+    public function findRsaKey(array $fps, bool $test, bool $cdn): ?RSA
     {
         if ($cdn) {
-            return $this->cdn_rsa_keys;
+            $list = $this->cdn_rsa_keys;
+        } elseif ($test) {
+            $list = $this->test_rsa_keys;
+        } else {
+            $list = $this->rsa_keys;
+        };
+
+        foreach ($list as $curkey) {
+            if (\in_array($curkey->fp, $fps, true)) {
+                return $curkey;
+            }
         }
-        if ($test) {
-            return $this->test_rsa_keys;
-        }
-        return $this->rsa_keys;
+
+        return null;
     }
     /**
      * Serialize all instances.
@@ -502,7 +509,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         $q = new SplQueue;
         $q->setIteratorMode(SplQueue::IT_MODE_DELETE);
         $this->updateQueue ??= $q;
-        $this->loginState = new Publisher(new LoginState(API::LOGGED_OUT, null));
+        $this->loginState = new Publisher(new LoginState(API::NOT_LOGGED_IN, null));
 
         $initDeferred = new DeferredFuture;
         $this->initPromise = $initDeferred->getFuture();
@@ -1151,6 +1158,9 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             if ($this->settings->getDb()->getEnableMinDb() && !($this->authorization['user']['bot'] ?? false)) {
                 $callbacks[] = $this->minDatabase;
             }
+
+            $this->loginState->wakeup();
+
             // Connect to all DCs, start internal loops
             if ($this->fullGetSelf()) {
                 $this->setupLogger();

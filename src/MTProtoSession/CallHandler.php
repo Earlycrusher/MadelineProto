@@ -75,7 +75,7 @@ trait CallHandler
         }
         if ($defer) {
             $defer->finally(
-                fn () => $this->methodRecall($request, $this->datacenter)
+                fn () => $this->methodRecall($request, $forceDatacenter)
             );
             return;
         }
@@ -84,6 +84,8 @@ trait CallHandler
             /** @var MTProtoOutgoingMessage */
             $request->setMsgId(null);
             $request->setSeqNo(null);
+            $request->next->prev = $request->prev;
+            $request->prev->next = $request->next;
         }
         if ($datacenter === $this->datacenter) {
             EventLoop::queue($this->sendMessage(...), $request);
@@ -163,7 +165,7 @@ trait CallHandler
             throw new Exception("Could not find method $method!");
         }
         $encrypted = $methodInfo['encrypted'];
-        $timeout = new TimeoutCancellation($this->drop ??= (float) $this->API->getSettings()->getRpc()->getRpcDropTimeout());
+        $timeout = new TimeoutCancellation($args['timeout'] ?? ($this->drop ??= (float) $this->API->getSettings()->getRpc()->getRpcDropTimeout()));
         $cancellation = $cancellation !== null
             ? new CompositeCancellation($cancellation, $timeout)
             : $timeout;

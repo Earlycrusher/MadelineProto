@@ -104,7 +104,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
      * @param boolean                 $unencrypted Is this an unencrypted message?
      */
     public function __construct(
-        private readonly Connection $connection,
+        public Connection $connection,
         private ?array $body,
         public readonly string $constructor,
         public readonly string $type,

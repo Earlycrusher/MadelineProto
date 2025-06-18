@@ -521,6 +521,7 @@ final class Connection
      */
     public function sendMessage(MTProtoOutgoingMessage $message): void
     {
+        $message->connection = $this;
         $message->trySend();
         $promise = $message->getSendPromise();
         if (!$message->hasSerializedBody() || $message->shouldRefreshReferences()) {
