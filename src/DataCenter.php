@@ -99,7 +99,7 @@ final class DataCenter
         return ['API', 'list', 'currentDatacenter'];
     }
 
-    public function __wakeup()
+    public function __wakeup(): void
     {
         $this->connectMutex = new LocalKeyedMutex;
         if ($this->getSettings()->hasChanged()) {

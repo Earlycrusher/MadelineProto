@@ -34,7 +34,7 @@ use danog\MadelineProto\SecurityException;
  * @internal
  *
  * @author Daniil Gentili <daniil@daniil.it>
- * 
+ *
  * @implements SimpleSubscriber<LoginState>
  */
 final class SecretFeedLoop extends Loop implements SimpleSubscriber

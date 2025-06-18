@@ -19,7 +19,6 @@ declare(strict_types=1);
 namespace danog\MadelineProto\Reactive;
 
 use danog\Loop\GenericLoop;
-use danog\Loop\Loop;
 use SplQueue;
 
 /**
@@ -48,7 +47,7 @@ final class Actor implements Subscriber
         return ['queue', 'subscriber'];
     }
 
-    public function __wakeup()
+    public function __wakeup(): void
     {
         $this->loop = new GenericLoop(function (): ?float {
             foreach ($this->queue as $item) {

@@ -31,7 +31,6 @@ use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
 use danog\MadelineProto\Settings\Connection as ConnectionSettings;
 use danog\MadelineProto\Stream\ContextIterator;
-use Random\Engine\Secure;
 use Revolt\EventLoop;
 use Webmozart\Assert\Assert;
 
@@ -116,7 +115,8 @@ final class DataCenterConnection implements SimpleSubscriber
         $this->auth->connectionState->subscribe($this);
     }
 
-    public function importFromLegacy(self $legacy): void {
+    public function importFromLegacy(self $legacy): void
+    {
         $this->auth->setAuthKey($legacy->permAuthKey?->getAuthKey());
     }
 
@@ -171,7 +171,6 @@ final class DataCenterConnection implements SimpleSubscriber
             return;
         }
         $logger->logger("Handling auth key transition to {$state->name} in DC {$this->datacenter}", Logger::NOTICE);
-
 
         if ($state === ConnectionState::UNENCRYPTED_NO_PERMANENT) {
             Assert::false($this->auth->isMedia);

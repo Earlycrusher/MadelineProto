@@ -20,7 +20,6 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\MTProto;
 
-use danog\MadelineProto\API;
 use danog\MadelineProto\MTProtoTools\Crypt;
 use danog\MadelineProto\Reactive\Publisher;
 use danog\MadelineProto\Reactive\SimpleSubscriber;
@@ -131,8 +130,9 @@ final class NewAuthKey implements SimpleSubscriber
             Assert::notNull($this->id, 'Auth key must not be null if temp auth key is not null');
             $this->tempId = substr(sha1($authKey, true), -8);
             $this->tempAuthKeyForHash = substr($authKey, 88, 32);
-            $this->connectionState->publish($this->isCdn 
-                ? ConnectionState::ENCRYPTED_NOT_INITED 
+            $this->connectionState->publish(
+                $this->isCdn
+                ? ConnectionState::ENCRYPTED_NOT_INITED
                 : ConnectionState::ENCRYPTED_NOT_BOUND
             );
         }
@@ -195,11 +195,13 @@ final class NewAuthKey implements SimpleSubscriber
     public function init(): void
     {
         Assert::eq($this->connectionState->getState(), ConnectionState::ENCRYPTED_NOT_INITED);
-        $state = $this->isCdn 
+        $state = $this->isCdn
             ? ConnectionState::ENCRYPTED
-            : ($this->authedDcId === null 
+            : (
+                $this->authedDcId === null
                 ? ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
-                : ($this->authedDcId === $this->dcId 
+                : (
+                    $this->authedDcId === $this->dcId
                     ? ConnectionState::ENCRYPTED
                     : ConnectionState::ENCRYPTED_NOT_AUTHED
                 )

@@ -103,8 +103,8 @@ final class WriteLoop extends Loop implements Subscriber, EphemeralSubscriber
                     ConnectionState::UNENCRYPTED,
                     ConnectionState::UNENCRYPTED_NO_PERMANENT,
                     ConnectionState::UNENCRYPTED_MEDIA_WAITING_MAIN => $this->connection->unencryptedPendingOutgoing,
-                    ConnectionState::ENCRYPTED, 
-                        ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN => $this->connection->mainPendingOutgoing,
+                    ConnectionState::ENCRYPTED,
+                    ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN => $this->connection->mainPendingOutgoing,
                     default => $this->connection->uninitedPendingOutgoing
                 };
                 $this->pendingState = null;

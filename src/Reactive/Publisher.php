@@ -19,8 +19,6 @@ declare(strict_types=1);
 namespace danog\MadelineProto\Reactive;
 
 use Amp\Cancellation;
-use AssertionError;
-use SplObjectStorage;
 use WeakMap;
 use Webmozart\Assert\Assert;
 
@@ -75,7 +73,8 @@ final class Publisher
         }
     }
 
-    public function wakeup(): void {
+    public function wakeup(): void
+    {
         if (!$this->wokeup) {
             $this->wokeup = true;
             foreach ($this->subscribers as $v) {
