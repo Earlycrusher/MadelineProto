@@ -182,7 +182,6 @@ trait UpdateHandler
         $this->eventHandlerMethods = [];
         $this->eventHandlerHandlers = [];
         $this->pluginInstances = [];
-        $this->startUpdateSystem();
     }
     /**
      * PWRTelegram webhook URL.
@@ -210,7 +209,6 @@ trait UpdateHandler
         $this->eventHandlerMethods = [];
         $this->eventHandlerHandlers = [];
         $this->pluginInstances = [];
-        $this->startUpdateSystem();
     }
 
     /**

@@ -659,7 +659,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         $this->startLoops();
         $this->datacenter->currentDatacenter = $this->settings->getConnection()->getTestMode() ? 10002 : 2;
         $this->getConfig();
-        $this->startUpdateSystem(true);
         $this->v = API::RELEASE;
 
         $this->settings->applyChanges();
@@ -1034,7 +1033,6 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         $this->acceptChatMutex ??= new LocalKeyedMutex;
         $this->confirmChatMutex ??= new LocalKeyedMutex;
         $this->updateState ??= new CombinedUpdatesState;
-        $this->datacenter ??= new DataCenter($this);
         $this->snitch ??= new Snitch;
 
         $this->referenceDatabase ??= new ReferenceDatabase($this);
@@ -1055,10 +1053,18 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
         $this->updateState->get(FeedLoop::GENERIC);
         foreach ($this->updateState->get() as $state) {
             $channelId = $state->channelId;
-            $this->feeders[$channelId] ??= new FeedLoop($this, $channelId);
-            $this->updaters[$channelId] ??= new UpdateLoop($this, $channelId);
+            $feeder = $this->feeders[$channelId] ??= new FeedLoop($this, $channelId);
+            $updater = $this->updaters[$channelId] ??= new UpdateLoop($this, $channelId);
+
+            $this->loginState->subscribe($feeder);
+            $this->loginState->subscribe($updater);
         }
         $this->seqUpdater ??= new SeqLoop($this);
+        $this->loginState->subscribe($this->seqUpdater);
+
+        foreach ($this->secretChats as $chat) {
+            $chat->wakeupFeedLoop();
+        }
     }
 
     /** @internal */
@@ -1178,7 +1184,16 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             if ($this->event_handler && class_exists($this->event_handler) && is_subclass_of($this->event_handler, EventHandler::class)) {
                 $this->setEventHandler($this->event_handler);
             }
-            $this->startUpdateSystem(true);
+
+            if ($this->event_handler_instance instanceof EventHandler
+                && $f = $this->event_handler_instance->waitForInternalStart()
+            ) {
+                $f->map(function (): void {
+                    foreach ($this->updateQueue as $update) {
+                        $this->handleUpdate($update);
+                    }
+                });
+            }
             $this->cacheFullDialogs();
 
             foreach ($this->broadcasts as $broadcast) {
@@ -1221,9 +1236,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             $this->seqUpdater->stop();
         }
         if (isset($this->updateState)) {
-            $channelIds = array_keys($this->updateState->get());
-            sort($channelIds);
-            foreach ($channelIds as $channelId) {
+            foreach ($this->updateState->get() as $channelId => $_) {
                 if (isset($this->feeders[$channelId])) {
                     $this->feeders[$channelId]->stop();
                 }
@@ -1431,49 +1444,14 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             }
         }
         $this->updateState = $new;
-        $this->startUpdateSystem();
-    }
-    /**
-     * Start the update system.
-     *
-     * @param boolean $anyway Force start update system?
-     * @internal
-     */
-    public function startUpdateSystem(bool $anyway = false): void
-    {
-        if (!$this->isInited() && !$anyway) {
-            $this->logger('Not starting update system');
-            return;
-        }
-        $this->logger('Starting update system');
-        $this->updateState->get(FeedLoop::GENERIC);
-        $channelIds = array_keys($this->updateState->get());
-        foreach ($channelIds as $channelId) {
-            $this->feeders[$channelId] ??= new FeedLoop($this, $channelId);
-            $this->updaters[$channelId] ??= new UpdateLoop($this, $channelId);
-            $this->feeders[$channelId]->start();
-            if (isset($this->feeders[$channelId])) {
-                $this->feeders[$channelId]->resume();
-            }
-            $this->updaters[$channelId]->start();
-            if (isset($this->updaters[$channelId])) {
-                $this->updaters[$channelId]->resume();
-            }
-        }
-        $this->seqUpdater->start();
-        $this->seqUpdater->resume();
-        foreach ($this->secretChats as $chat) {
-            $chat->startFeedLoop();
-        }
 
-        if ($this->event_handler_instance instanceof EventHandler
-            && $f = $this->event_handler_instance->waitForInternalStart()
-        ) {
-            $f->map(function (): void {
-                foreach ($this->updateQueue as $update) {
-                    $this->handleUpdate($update);
-                }
-            });
+        foreach ($channelIds as $channelId) {
+            if (isset($this->feeders[$channelId])) {
+                $this->feeders[$channelId]->start();
+            }
+            if (isset($this->updaters[$channelId])) {
+                $this->updaters[$channelId]->start();
+            }
         }
     }
     /**

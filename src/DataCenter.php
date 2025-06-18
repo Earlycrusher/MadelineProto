@@ -91,11 +91,21 @@ final class DataCenter
      */
     public function __construct(private readonly MTProto $API)
     {
+        $this->__wakeup();
+    }
+
+    public function __sleep()
+    {
+        return ['API', 'list', 'currentDatacenter'];
+    }
+
+    public function __wakeup()
+    {
         $this->connectMutex = new LocalKeyedMutex;
         if ($this->getSettings()->hasChanged()) {
             unset($this->dohWrapper);
         }
-        $this->dohWrapper ??= new DoHWrapper($API);
+        $this->dohWrapper ??= new DoHWrapper($this->API);
         if ($this->getSettings()->hasChanged()) {
             foreach ($this->list as $dc => $socket) {
                 if (\is_string($dc)) {
@@ -106,11 +116,6 @@ final class DataCenter
             }
             $this->getSettings()->applyChanges();
         }
-    }
-
-    public function __sleep()
-    {
-        return ['list', 'currentDatacenter'];
     }
     /**
      * @return array<int, DataCenterConnection>

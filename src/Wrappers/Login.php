@@ -275,7 +275,6 @@ trait Login
         }
         /** @psalm-suppress InvalidArgument */
         $this->TL->updateCallbacks($callbacks);
-        $this->startUpdateSystem();
         $this->qrLoginDeferred?->cancel();
         $this->qrLoginDeferred = null;
         $this->fullGetSelf();
@@ -326,7 +325,6 @@ trait Login
         $this->qrLoginDeferred = null;
         $this->logger->logger(Lang::$current_lang['login_ok'], Logger::NOTICE);
         $this->fullGetSelf();
-        $this->startUpdateSystem();
         $this->initDb();
         $this->serialize();
     }
