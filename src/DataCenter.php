@@ -112,13 +112,12 @@ final class DataCenter
     {
         return ['list', 'currentDatacenter'];
     }
-    public function __wakeup()
+    /**
+     * @return array<int, DataCenterConnection>
+     */
+    public function getLegacy(): array
     {
-        foreach ($this->sockets as $dc => $socket) {
-            $this->list[$dc] ??= new DataCenterConnection($this->API, $dc);
-            $this->list[$dc]->importFromLegacy($socket);
-        }
-        $this->sockets = [];
+        return $this->sockets;
     }
 
     public static function isTest(int $dc): bool

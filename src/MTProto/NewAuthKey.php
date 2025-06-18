@@ -43,7 +43,7 @@ final class NewAuthKey implements SimpleSubscriber
     /** @var Publisher<ConnectionState> */
     public readonly Publisher $connectionState;
 
-    private bool $isLoggedIn = false;
+    private ?int $authedDcId;
 
     public function __construct(
         public readonly bool $isMedia,
@@ -85,19 +85,19 @@ final class NewAuthKey implements SimpleSubscriber
         }
 
         Assert::isInstanceOf($state, LoginState::class);
-        $this->isLoggedIn = $state->state === API::LOGGED_IN;
+        $this->authedDcId = $state->authorizedDc;
         if ($this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED
             || $this->connectionState->getState() === ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
         ) {
-            if ($this->isLoggedIn) {
-                $state = $this->dcId === $state->authorizedDc
+            if ($this->authedDcId !== null) {
+                $state = $this->dcId === $this->authedDcId
                     ? ConnectionState::ENCRYPTED
                     : ConnectionState::ENCRYPTED_NOT_AUTHED;
             } else {
                 $state = ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN;
             }
             $this->connectionState->publish($state);
-        } elseif (!$this->isLoggedIn && $this->connectionState->getState() === ConnectionState::ENCRYPTED) {
+        } elseif ($this->authedDcId === null && $this->connectionState->getState() === ConnectionState::ENCRYPTED) {
             $this->setTempAuthKey(null, null);
         }
     }
@@ -197,7 +197,13 @@ final class NewAuthKey implements SimpleSubscriber
         Assert::eq($this->connectionState->getState(), ConnectionState::ENCRYPTED_NOT_INITED);
         $state = $this->isCdn 
             ? ConnectionState::ENCRYPTED
-            : ($this->isLoggedIn ? ConnectionState::ENCRYPTED_NOT_AUTHED : ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN);
+            : ($this->authedDcId === null 
+                ? ConnectionState::ENCRYPTED_NOT_AUTHED_NO_LOGIN
+                : ($this->authedDcId === $this->dcId 
+                    ? ConnectionState::ENCRYPTED
+                    : ConnectionState::ENCRYPTED_NOT_AUTHED
+                )
+            );
         $this->connectionState->publish($state);
     }
     public function authorize(): void
