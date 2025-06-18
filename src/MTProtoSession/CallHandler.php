@@ -71,7 +71,6 @@ trait CallHandler
             $id = EventLoop::delay($defer, $d->complete(...));
             $request->cancellation?->subscribe(static fn () => EventLoop::cancel($id));
             $defer = $d;
-            return;
         }
         if ($defer) {
             $defer->finally(
