@@ -316,7 +316,6 @@ class MyEventHandler extends SimpleEventHandler
 
 $settings = new Settings;
 $settings->getLogger()->setLevel(Logger::LEVEL_ULTRA_VERBOSE);
-$settings->getConnection()->setTestMode(true);
 
 // You can also use Redis, MySQL or PostgreSQL.
 // Data is migrated automatically.
