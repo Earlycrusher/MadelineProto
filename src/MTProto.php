@@ -2043,7 +2043,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     }
     /** @internal */
     public function getPassword(): array {
-        return $this->methodCallAsyncRead('account.getPassword', [], $this->loginState->getState()->authorizedDc);
+        return $this->methodCallAsyncRead('account.getPassword', ['specialMethodType' => SpecialMethodType::USER_RELATED]);
     }
     /** @internal */
     public function getPasswordSRP(string $password): array
