@@ -157,6 +157,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         });
     }
 
+    #[\Override]
     public function __debugInfo(): array
     {
         if (!isset($this->next)) {

@@ -29,6 +29,8 @@ use Webmozart\Assert\Assert;
  * MTProto auth key.
  *
  * @internal
+ * 
+ * @implements SimpleSubscriber<ConnectionState|LoginState>
  */
 final class NewAuthKey implements SimpleSubscriber
 {

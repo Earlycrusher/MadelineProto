@@ -228,6 +228,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
     /**
      * CDN RSA keys.
      *
+     * @var array<RSA>
      */
     private array $cdn_rsa_keys = [];
     /**
@@ -456,7 +457,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
             $list = $this->test_rsa_keys;
         } else {
             $list = $this->rsa_keys;
-        };
+        }
 
         foreach ($list as $curkey) {
             if (\in_array($curkey->fp, $fps, true)) {
