@@ -216,6 +216,16 @@ final class DataCenterConnection implements SimpleSubscriber
             throw new SecurityException('An error occurred while binding temporary and permanent authorization keys.');
         } elseif ($state === ConnectionState::ENCRYPTED_NOT_INITED) {
             $this->API->logger('Writing client info (also executing help.getConfig)...', Logger::NOTICE);
+            if ($this->auth->isCdn) {
+                $message = $connection->mainPendingOutgoing->peek();
+                Assert::notNull($message);
+                $method = $message->getSerializedBody();
+            } else {
+                $method = $this->API->getTL()->serializeMethod(
+                    'help.getConfig',
+                    []
+                );
+            }
             $connection->methodCallAsyncRead('invokeWithLayer', [
                 'layer' => $this->API->settings->getSchema()->getLayer(),
                 'query' => $this->API->getTL()->serializeMethod(
@@ -230,10 +240,7 @@ final class DataCenterConnection implements SimpleSubscriber
                         'lang_code' => $this->API->settings->getAppInfo()->getLangCode(),
                         'lang_pack' => $this->API->settings->getAppInfo()->getLangPack(),
                         'proxy' => $connection->getInputClientProxy(),
-                        'query' => $this->API->getTL()->serializeMethod(
-                            $this->auth->isCdn ? 'ping' : 'help.getConfig',
-                            []
-                        ),
+                        'query' => $method,
                     ]
                 ),
                 'specialMethodType' => SpecialMethodType::UNAUTHED_METHOD
