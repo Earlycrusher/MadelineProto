@@ -70,7 +70,7 @@ trait CallHandler
             $d = new DeferredFuture;
             $id = EventLoop::delay($defer, $d->complete(...));
             $request->cancellation?->subscribe(static fn () => EventLoop::cancel($id));
-            $defer = $d;
+            $defer = $d->getFuture();
         }
         if ($defer) {
             $defer->finally(

@@ -93,6 +93,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
     private int $tries = 0;
 
     private ?string $checkTimer = null;
+    private readonly string $cancelSubscription;
 
     /**
      * Create outgoing message.
@@ -128,7 +129,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         parent::__construct(!isset(MTProtoMessage::NOT_CONTENT_RELATED[$constructor]));
 
         $weak = \WeakReference::create($this);
-        $cancellation?->subscribe(static function (CancelledException $e) use ($weak): void {
+        $this->cancelSubscription = $cancellation?->subscribe(static function (CancelledException $e) use ($weak): void {
             $self = $weak->get();
             if ($self == null || $self->hasReply()) {
                 return;
@@ -289,6 +290,7 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         $this->body = null;
 
         $this->state |= self::STATE_REPLIED;
+        $this->cancellation->unsubscribe($this->cancelSubscription);
         if ($this->resultDeferred) { // Sometimes can get an RPC error for constructors
             $promise = $this->resultDeferred;
             $this->resultDeferred = null;
