@@ -106,10 +106,11 @@ final class Publisher
     {
         if ($state != $this->state) {
             $prev = $this->state;
+            $this->state = $state;
+            $this->wokeup = true;
             foreach ($this->subscribers as $subscriber) {
                 $subscriber->onStateChange($prev, $state);
             }
-            $this->state = $state;
         }
     }
 
