@@ -1142,7 +1142,7 @@ trait UpdateHandler
                 );
                 if ($authorization['_'] === 'auth.loginTokenMigrateTo') {
                     $datacenter = $this->isTestMode() ? 10_000 + $authorization['dc_id'] : $authorization['dc_id'];
-                    $this->loginState->publish($this->API->loginState->getState()->setDc($datacenter));
+                    $this->loginState->publish($this->loginState->getState()->setDc($datacenter));
                     $authorization['specialMethodType'] = SpecialMethodType::USER_RELATED;
                     $authorization = $this->methodCallAsyncRead(
                         'auth.importLoginToken',
