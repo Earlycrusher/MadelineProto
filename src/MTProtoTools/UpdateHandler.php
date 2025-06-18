@@ -1155,7 +1155,7 @@ trait UpdateHandler
                 if (!isset($this->authorization['hint'])) {
                     $this->authorization['hint'] = '';
                 }
-                $this->loginState->publish($this->loginState->setState(API::WAITING_PASSWORD));
+                $this->setLoginState(API::WAITING_PASSWORD);
                 $this->qrLoginDeferred?->cancel();
                 $this->qrLoginDeferred = null;
                 return;
