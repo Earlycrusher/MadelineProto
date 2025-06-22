@@ -15,15 +15,9 @@ permissions:
   contents: read
 
 jobs:
-  pre_job:
-    permissions:
-      actions: write
-    runs-on: ubuntu-latest
-
   build-docker:
     permissions:
       packages: write
-    needs: pre_job
     strategy:
       matrix:
         image:
