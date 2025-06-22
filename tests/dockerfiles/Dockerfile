@@ -95,7 +95,7 @@ RUN set -eux; \
 		libssl-dev \
 		libxml2-dev \
 		zlib1g-dev \
-		libcapstone-dev libffi-dev libpng-dev libgmp-dev libzip-dev \
+		libcapstone-dev libffi-dev libpng-dev libgmp-dev libzip-dev libtidy-dev \
 	; \
 	\
 	export \
