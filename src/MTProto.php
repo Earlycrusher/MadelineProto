@@ -711,6 +711,7 @@ final class MTProto implements TLCallback, LoggerGetter, SettingsGetter
      */
     public function __sleep(): array
     {
+        $this->loginState ??= new Publisher(new LoginState($this->authorized, $this->authorized_dc));
         return [
             // Databases
             'referenceDatabase',
