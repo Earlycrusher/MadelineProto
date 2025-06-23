@@ -3242,6 +3242,7 @@
       <code><![CDATA[isset($this->settings)]]></code>
       <code><![CDATA[new PeerDatabase($this)]]></code>
       <code><![CDATA[new Publisher(new LoginState($this->authorized, $this->authorized_dc))]]></code>
+      <code><![CDATA[new Publisher(new LoginState($this->authorized, $this->authorized_dc))]]></code>
     </DocblockTypeContradiction>
     <ImpureMethodCall>
       <code><![CDATA[load]]></code>
@@ -3298,6 +3299,8 @@
       <code><![CDATA[$options]]></code>
       <code><![CDATA[$this->authorized]]></code>
       <code><![CDATA[$this->authorized]]></code>
+      <code><![CDATA[$this->authorized]]></code>
+      <code><![CDATA[$this->authorized_dc]]></code>
       <code><![CDATA[$this->authorized_dc]]></code>
     </MixedArgument>
     <MixedArgumentTypeCoercion>
@@ -3406,6 +3409,7 @@
     </RedundantCondition>
     <RedundantConditionGivenDocblockType>
       <code><![CDATA[$this->loginState]]></code>
+      <code><![CDATA[$this->loginState]]></code>
       <code><![CDATA[$this->peerDatabase]]></code>
       <code><![CDATA[isset($this->datacenter)]]></code>
       <code><![CDATA[isset($this->datacenter)]]></code>
@@ -3423,6 +3427,8 @@
     </UndefinedFunction>
     <UndefinedThisPropertyFetch>
       <code><![CDATA[$this->authorized]]></code>
+      <code><![CDATA[$this->authorized]]></code>
+      <code><![CDATA[$this->authorized_dc]]></code>
       <code><![CDATA[$this->authorized_dc]]></code>
       <code><![CDATA[$this->updates]]></code>
     </UndefinedThisPropertyFetch>
