@@ -212,7 +212,6 @@ trait Session
                 if (!$message instanceof MTProtoOutgoingMessage) {
                     break;
                 }
-                $message->unlink();
                 $pending []= $message;
             }
         }

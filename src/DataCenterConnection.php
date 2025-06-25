@@ -360,7 +360,8 @@ final class DataCenterConnection implements SimpleSubscriber
     {
         $backup = $this->connections[$id]->backupSession();
         $list = '';
-        foreach ($backup as $k => $message) {
+        foreach ($backup as $message) {
+            $message->unlink();
             $list .= $message->constructor;
             $list .= ', ';
         }
