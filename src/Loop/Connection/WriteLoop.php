@@ -199,7 +199,7 @@ final class WriteLoop extends Loop implements Subscriber, EphemeralSubscriber
                         continue;
                     }
                     $msgIds[] = $id;
-                    $list .= $msg->constructor.', ';
+                    $list .= $msg.', ';
                     $arr[] = $msg;
                 }
                 $this->API->logger("Still missing {$list} on DC {$this->datacenter}, sending state request", Logger::ERROR);
