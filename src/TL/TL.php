@@ -1069,7 +1069,7 @@ final class TL implements TLInterface
 
         if (isset($x['channel_id'])) {
             $x['channel_id'] = $x['channel_id'] > Magic::MAX_CHANNEL_ID
-                ? DialogId::fromMiniforumId($x['channel_id'])
+                ? DialogId::fromMonoforumId($x['channel_id'])
                 : DialogId::fromSupergroupOrChannelId($x['channel_id']);
         } elseif (isset($x['random_bytes'])) {
             if (\strlen((string) $x['random_bytes']) < 15) {
@@ -1081,7 +1081,7 @@ final class TL implements TLInterface
             || $x['_'] === 'channelFull'
         ) {
             $x['id'] = $x['id'] > Magic::MAX_CHANNEL_ID
-                ? DialogId::fromMiniforumId($x['id'])
+                ? DialogId::fromMonoforumId($x['id'])
                 : DialogId::fromSupergroupOrChannelId($x['id']);
         } elseif ($x['_'] === 'chat'
             || $x['_'] === 'chatForbidden'

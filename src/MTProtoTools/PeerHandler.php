@@ -389,7 +389,7 @@ trait PeerHandler
             if (!$this->peerDatabase->isset($id)) {
                 try {
                     $this->logger->logger("Try fetching {$id} with access hash 0");
-                    if (DialogId::isSupergroupOrChannelOrMiniforum($id)) {
+                    if (DialogId::isSupergroupOrChannelOrMonoforum($id)) {
                         $this->peerDatabase->addChatBlocking($id);
                     } elseif ($id < 0) {
                         $this->methodCallAsyncRead('messages.getChats', ['id' => [-$id]]);
@@ -610,7 +610,7 @@ trait PeerHandler
                 case DialogId::CHANNEL_OR_SUPERGROUP:
                     $supergroups []= $id;
                     break;
-                case DialogId::MINIFORUM:
+                case DialogId::MONOFORUM:
                     $supergroups []= $id;
                     break;
                 case DialogId::CHAT:

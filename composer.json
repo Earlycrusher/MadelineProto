@@ -62,7 +62,7 @@
         "danog/telegram-entities": "^1.0.5",
         "danog/better-prometheus": "^0.1.1",
         "amphp/http-server": "^3.4.3",
-        "danog/tg-dialog-id": "^1.2.0",
+        "danog/tg-dialog-id": "^2",
         "symfony/polyfill-php83": "^1.32"
     },
     "require-dev": {

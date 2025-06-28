@@ -710,7 +710,7 @@
       <code><![CDATA[$replyTo['reply_to_top_id']]]></code>
       <code><![CDATA[$replyTo['reply_to_top_id']]]></code>
       <code><![CDATA[$this->getClient()->methodCallAsyncRead(
-            DialogId::isSupergroupOrChannelOrMiniforum($this->chatId) ? 'channels.getMessages' : 'messages.getMessages',
+            DialogId::isSupergroupOrChannelOrMonoforum($this->chatId) ? 'channels.getMessages' : 'messages.getMessages',
             [
                 'channel' => $this->chatId,
                 'id' => [['_' => 'inputMessageReplyTo', 'id' => $this->id]],
