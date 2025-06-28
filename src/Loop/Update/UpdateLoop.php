@@ -62,7 +62,6 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
 
     private const DEFAULT_TIMEOUT = 10.0;
 
-    private ?int $toPts = null;
     /**
      * Feed loop.
      */
@@ -109,8 +108,6 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
         $state = $this->channelId === self::GENERIC ? $this->API->loadUpdateState() : $this->API->loadChannelState($this->channelId);
 
         $result = [];
-        $toPts = $this->toPts;
-        $this->toPts = null;
         while (true) {
             if ($this->channelId) {
                 $this->API->logger('Resumed and fetching '.$this->channelId.' difference...', Logger::ULTRA_VERBOSE);
@@ -168,10 +165,6 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
                         }
                         $this->feeder->saveMessages($difference['new_messages']);
                         if (!$difference['final']) {
-                            if ($difference['pts'] >= $toPts) {
-                                unset($difference);
-                                break 2;
-                            }
                             unset($difference);
                             break;
                         }
@@ -236,10 +229,6 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
                             $result[$this->channelId] = true;
                         }
                         $this->feeder->saveMessages($difference['new_messages']);
-                        if ($difference['intermediate_state']['pts'] >= $toPts) {
-                            unset($difference);
-                            break 2;
-                        }
                         unset($difference);
                         break;
                     case 'updates.differenceTooLong':
@@ -258,10 +247,6 @@ final class UpdateLoop extends Loop implements SimpleSubscriber
         $this->API->logger("Finished parsing updates in {$this}, pausing for $timeout seconds", Logger::ULTRA_VERBOSE);
 
         return $timeout;
-    }
-    public function setLimit(int $toPts): void
-    {
-        $this->toPts = $toPts;
     }
     /**
      * Get loop name.

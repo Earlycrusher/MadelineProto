@@ -525,33 +525,24 @@ final class Connection
     {
         $message->connection = $this;
         $message->trySend();
-        if (!$message->hasSerializedBody() || $message->shouldRefreshReferences()) {
+        if (!$message->hasSerializedBody()) {
             $body = $message->getBody();
-            if ($message->shouldRefreshReferences()) {
-                $this->API->referenceDatabase->refreshNextEnable();
-            }
-            try {
-                if ($message->isMethod) {
-                    $body = $this->API->getTL()->serializeMethod($message->constructor, $body);
-                    if ($message->takeoutId !== null) {
-                        $body = $this->API->getTL()->serializeMethod(
-                            'invokeWithTakeout',
-                            ['takeout_id' => $message->takeoutId, 'query' => $body],
-                        );
-                    } elseif ($message->businessConnectionId !== null) {
-                        $body = $this->API->getTL()->serializeMethod(
-                            'invokeWithBusinessConnection',
-                            ['connection_id' => $message->businessConnectionId, 'query' => $body],
-                        );
-                    }
-                } else {
-                    $body['_'] = $message->constructor;
-                    $body = $this->API->getTL()->serializeObject(['type' => ''], $body, $message->constructor);
+            if ($message->isMethod) {
+                $body = $this->API->getTL()->serializeMethod($message->constructor, $body);
+                if ($message->takeoutId !== null) {
+                    $body = $this->API->getTL()->serializeMethod(
+                        'invokeWithTakeout',
+                        ['takeout_id' => $message->takeoutId, 'query' => $body],
+                    );
+                } elseif ($message->businessConnectionId !== null) {
+                    $body = $this->API->getTL()->serializeMethod(
+                        'invokeWithBusinessConnection',
+                        ['connection_id' => $message->businessConnectionId, 'query' => $body],
+                    );
                 }
-            } finally {
-                if ($message->shouldRefreshReferences()) {
-                    $this->API->referenceDatabase->refreshNextDisable();
-                }
+            } else {
+                $body['_'] = $message->constructor;
+                $body = $this->API->getTL()->serializeObject(['type' => ''], $body, $message->constructor);
             }
             $message->setSerializedBody($body);
             unset($body);

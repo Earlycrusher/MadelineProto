@@ -30,6 +30,7 @@ use danog\MadelineProto\LegacyMigrator;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\MTProto;
 use danog\MadelineProto\MTProto\MTProtoOutgoingMessage;
+use danog\MadelineProto\MTProto\SpecialMethodType;
 use danog\MadelineProto\TL\TLCallback;
 use danog\MadelineProto\Tools;
 use Revolt\EventLoop;
@@ -87,9 +88,8 @@ final class ReferenceDatabase implements TLCallback
     private array $pendingDb = [];
     private array $cache = [];
     private array $cacheContexts = [];
-    private array $refreshed = [];
     private bool $refresh = false;
-    private int $refreshCount = 0;
+    private array $refreshQueue = [];
     private int $v = 0;
 
     private LocalKeyedMutex $flushMutex;
@@ -440,9 +440,6 @@ final class ReferenceDatabase implements TLCallback
             $origin,
         ];
 
-        if ($this->refresh) {
-            $this->refreshed[$location] = true;
-        }
         $key = \count($this->cacheContexts) - 1;
         if ($key >= 0) {
             $this->cache[$key][$location] = $reference;
@@ -452,66 +449,24 @@ final class ReferenceDatabase implements TLCallback
     }
     public function refreshNextEnable(): void
     {
-        if ($this->refreshCount === 0) {
-            $this->refreshed = [];
-            $this->refreshCount++;
-            $this->refresh = true;
-        } else {
-            $this->refreshCount++;
-        }
+        Assert::false($this->refresh, 'Cannot enable refresh when it is already enabled');
+        $this->refresh = true;
     }
     public function refreshNextDisable(): void
     {
-        if ($this->refreshCount === 1) {
-            $this->refreshed = [];
-            $this->refreshCount--;
-            $this->refresh = false;
-        } elseif ($this->refreshCount === 0) {
-        } else {
-            $this->refreshCount--;
-        }
-    }
-    private function populateReference(array $object): array
-    {
-        $object['file_reference'] = $this->getReference(self::LOCATION_CONTEXT[$object['_']], $object);
-        return $object;
-    }
-    private function getDb(string $location): ?array
-    {
-        while (isset($this->pendingDb[$location])) {
-            $this->flush($location);
-        }
-        return $this->db[$location];
-    }
-    public function getReference(int $locationType, array $location): string
-    {
-        $locationString = self::serializeLocation($locationType, $location);
-        $res = $this->getDb($locationString);
-        if (!isset($res['reference'])) {
-            if (isset($location['file_reference'])) {
-                $this->API->logger("Using outdated file reference for location of type {$locationType} object {$location['_']}", Logger::ULTRA_VERBOSE);
-                if (\is_array($location['file_reference'])) {
-                    Assert::eq($location['file_reference']['_'], 'bytes');
-                    return base64_decode($location['file_reference']['bytes'], true);
-                }
-                return (string) $location['file_reference'];
-            }
-            if (!$this->refresh) {
-                $this->API->logger("Using null file reference for location of type {$locationType} object {$location['_']}", Logger::ULTRA_VERBOSE);
-                return '';
-            }
-            throw new Exception("Could not find file reference for location of type {$locationType} object {$location['_']}");
-        }
-        $this->API->logger("Getting file reference for location of type {$locationType} object {$location['_']}", Logger::ULTRA_VERBOSE);
-        if ($this->refresh) {
-            if (isset($this->refreshed[$locationString])) {
-                $this->API->logger('Reference already refreshed!', Logger::VERBOSE);
-                return (string) $this->getDb($locationString)['reference'];
-            }
+        Assert::true($this->refresh, 'Cannot disable refresh when it is already disabled');
+        $this->refresh = false;
+        $queue = $this->refreshQueue;
+        $this->refreshQueue = [];
+
+        $ok = false;
+        foreach ($queue as $locationString => $data) {
+            $data['reference'] = (string) $data['reference'];
             $count = 0;
-            foreach ($this->getDb($locationString)['origins'] as $originType => $origin) {
+            foreach ($data['origins'] as $originType => $origin) {
                 $count++;
                 $this->API->logger("Try {$count} refreshing file reference with origin type {$originType}", Logger::VERBOSE);
+                $origin['specialMethodType'] = SpecialMethodType::FILEREF_RELATED;
                 switch ($originType) {
                     // Peer + msg ID
                     case self::MESSAGE_ORIGIN:
@@ -554,13 +509,55 @@ final class ReferenceDatabase implements TLCallback
                     default:
                         throw new Exception("Unknown origin type {$originType}");
                 }
-                if (isset($this->refreshed[$locationString])) {
-                    return (string) $this->getDb($locationString)['reference'];
+                $got = (string) $this->getDb($locationString)['reference'];
+                if ($got !== $data['reference']) {
+                    $ok = true;
+                    break;
                 }
             }
-            throw new Exception('Did not refresh reference');
         }
-        return (string) $this->getDb($locationString)['reference'];
+        if (!$ok) {
+            $count = \count($queue);
+            throw new Exception("Could not refresh file reference for any of the {$count} locations");
+        }
+    }
+    private function populateReference(array $object): array
+    {
+        $object['file_reference'] = $this->getReference(self::LOCATION_CONTEXT[$object['_']], $object);
+        return $object;
+    }
+    private function getDb(string $location): ?array
+    {
+        while (isset($this->pendingDb[$location])) {
+            $this->flush($location);
+        }
+        return $this->db[$location];
+    }
+    public function getReference(int $locationType, array $location): string
+    {
+        $locationString = self::serializeLocation($locationType, $location);
+        $res = $this->getDb($locationString);
+        if (!isset($res['reference'])) {
+            if (isset($location['file_reference'])) {
+                $this->API->logger("Using outdated file reference for location of type {$locationType} object {$location['_']}", Logger::ULTRA_VERBOSE);
+                if (\is_array($location['file_reference'])) {
+                    Assert::eq($location['file_reference']['_'], 'bytes');
+                    return base64_decode($location['file_reference']['bytes'], true);
+                }
+                return (string) $location['file_reference'];
+            }
+            if (!$this->refresh) {
+                $this->API->logger("Using null file reference for location of type {$locationType} object {$location['_']}", Logger::ULTRA_VERBOSE);
+                return '';
+            }
+            throw new Exception("Could not find file reference for location of type {$locationType} object {$location['_']}");
+        }
+        $this->API->logger("Getting file reference for location of type {$locationType} object {$location['_']}", Logger::ULTRA_VERBOSE);
+        $data = $this->getDb($locationString);
+        if ($this->refresh) {
+            $this->refreshQueue[$locationString] = $data;
+        }
+        return (string) $data['reference'];
     }
     private static function serializeLocation(int $locationType, array $location): string
     {

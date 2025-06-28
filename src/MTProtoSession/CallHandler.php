@@ -79,9 +79,8 @@ trait CallHandler
         }
         $request->unlink();
         if ($defer) {
-            $defer->finally(
-                fn () => $this->methodRecall($request, $forceDatacenter)
-            );
+            $defer->catch($request->reply(...));
+            $defer->map(fn () => $this->methodRecall($request, $forceDatacenter));
             return;
         }
         $datacenter = $forceDatacenter ?? $this->datacenter;

@@ -265,8 +265,9 @@ class MyEventHandler extends SimpleEventHandler
     {
         if ($message->photo) {
             $message->reply("Nice! Here's a download link for the photo: ".$message->photo->getDownloadLink());
+        } else {
+            // The group photo was deleted
         }
-        // The group photo was deleted
     }
 
     /**

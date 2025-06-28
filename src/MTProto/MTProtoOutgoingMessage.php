@@ -29,6 +29,7 @@ use danog\MadelineProto\Exception;
 use Revolt\EventLoop;
 use Throwable;
 
+use function Amp\async;
 use function time;
 
 /**
@@ -384,14 +385,6 @@ class MTProtoOutgoingMessage extends MTProtoMessage
     }
 
     /**
-     * Get whether we should refresh references upon serialization of this message.
-     */
-    public function shouldRefreshReferences(): bool
-    {
-        return $this->refreshReferences;
-    }
-
-    /**
      * Set serialized body.
      *
      * @param string $serializedBody Serialized body.
@@ -403,16 +396,17 @@ class MTProtoOutgoingMessage extends MTProtoMessage
         return $this;
     }
 
-    /**
-     * Set whether we should refresh references upon serialization of this message.
-     *
-     * @param bool $refreshReferences Whether we should refresh references upon serialization of this message.
-     */
-    public function setRefreshReferences(bool $refreshReferences): self
+    public function refreshReferences(): Future
     {
-        $this->refreshReferences = $refreshReferences;
+        $this->serializedBody = null;
 
-        return $this;
+        return async(function (): void {
+            $this->connection->API->referenceDatabase->refreshNextEnable();
+            $this->connection->API->getTL()->serializeMethod($this->constructor, $this->body);
+            $this->connection->API->referenceDatabase->refreshNextDisable();
+
+            $this->serializedBody = null;
+        });
     }
 
     /**

@@ -302,12 +302,11 @@ trait ResponseHandler
         if ($response['error_message'] === 'PERSISTENT_TIMESTAMP_OUTDATED') {
             $response['error_code'] = 500;
         }
-        if (str_starts_with($response['error_message'], 'FILE_REFERENCE_')
-            && !$request->shouldRefreshReferences()
+        if (str_starts_with($response['error_message'], 'FILE_REFERENCE_') 
+            && $request->specialMethodType !== SpecialMethodType::FILEREF_RELATED
         ) {
             $this->API->logger("Got {$response['error_message']}, refreshing file reference and repeating method call...");
-            $request->setRefreshReferences(true);
-            $this->methodRecall($request, $this->datacenter);
+            $this->methodRecall($request, $this->datacenter, $request->refreshReferences());
             return null;
         }
 
