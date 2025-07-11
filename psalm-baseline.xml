@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<files psalm-version="dev-master@667088995f17e8c873cbf84a8aef9fac73880924">
+<files psalm-version="dev-master@6f60963fda0ed0211395d72d9c8f4d65ea58dc53">
   <file src="src/API.php">
     <ArgumentTypeCoercion>
       <code><![CDATA[$settings]]></code>
@@ -286,10 +286,6 @@
     </PossiblyInvalidArgument>
   </file>
   <file src="src/Conversion.php">
-    <DocblockTypeContradiction>
-      <code><![CDATA[\strlen($settings['old_session_passcode'])]]></code>
-      <code><![CDATA[\strlen($settings['old_session_passcode'])]]></code>
-    </DocblockTypeContradiction>
     <MissingParamType>
       <code><![CDATA[$auth_key]]></code>
       <code><![CDATA[$data]]></code>
@@ -2385,6 +2381,11 @@
     <MixedOperand>
       <code><![CDATA[$this->line]]></code>
     </MixedOperand>
+    <PossiblyInvalidArgument>
+      <code><![CDATA[$errfileReplaced]]></code>
+      <code><![CDATA[$errfileReplaced]]></code>
+      <code><![CDATA[$errfileReplaced]]></code>
+    </PossiblyInvalidArgument>
   </file>
   <file src="src/FileCallback.php">
     <TaintedCallable>
@@ -4216,11 +4217,17 @@
     <MixedReturnStatement>
       <code><![CDATA[$this->write[$offset]->getFuture()->await($this->cancellation)]]></code>
     </MixedReturnStatement>
+    <PossiblyInvalidArgument>
+      <code><![CDATA[preg_replace('|/+|', '/', $file)]]></code>
+    </PossiblyInvalidArgument>
     <PossiblyInvalidArrayOffset>
       <code><![CDATA[$this->read[$offset]]]></code>
       <code><![CDATA[$this->write[$offset]]]></code>
       <code><![CDATA[$this->write[$offset]]]></code>
     </PossiblyInvalidArrayOffset>
+    <PossiblyInvalidCast>
+      <code><![CDATA[preg_replace('|/+|', '/', $file)]]></code>
+    </PossiblyInvalidCast>
     <PossiblyNullArgument>
       <code><![CDATA[$datacenter]]></code>
       <code><![CDATA[$messageMedia]]></code>

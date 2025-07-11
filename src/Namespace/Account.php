@@ -1266,22 +1266,25 @@ interface Account
     /**
      *
      *
-     * @param bool $refund_charged
-     * @param array|int|string $user_id @see https://docs.madelineproto.xyz/API_docs/types/InputUser.html
-     * @param ?int $floodWaitLimit Can be used to specify a custom flood wait limit: if a FLOOD_WAIT_ rate limiting error is received with a waiting period bigger than this integer, an RPCErrorException will be thrown; otherwise, MadelineProto will simply wait for the specified amount of time. Defaults to the value specified in the settings: https://docs.madelineproto.xyz/PHP/danog/MadelineProto/Settings/RPC.html#setfloodtimeout-int-floodtimeout-self
-     * @param ?string $queueId If specified, ensures strict server-side execution order of concurrent calls with the same queue ID.
-     * @param ?\Amp\Cancellation $cancellation Cancellation
-     */
-    public function addNoPaidMessagesException(bool|null $refund_charged = null, array|int|string|null $user_id = null, ?int $floodWaitLimit = null, ?string $queueId = null, ?\Amp\Cancellation $cancellation = null): bool;
-
-    /**
-     *
-     *
+     * @param array|int|string $parent_peer @see https://docs.madelineproto.xyz/API_docs/types/InputPeer.html
      * @param array|int|string $user_id @see https://docs.madelineproto.xyz/API_docs/types/InputUser.html
      * @param ?int $floodWaitLimit Can be used to specify a custom flood wait limit: if a FLOOD_WAIT_ rate limiting error is received with a waiting period bigger than this integer, an RPCErrorException will be thrown; otherwise, MadelineProto will simply wait for the specified amount of time. Defaults to the value specified in the settings: https://docs.madelineproto.xyz/PHP/danog/MadelineProto/Settings/RPC.html#setfloodtimeout-int-floodtimeout-self
      * @param ?string $queueId If specified, ensures strict server-side execution order of concurrent calls with the same queue ID.
      * @param ?\Amp\Cancellation $cancellation Cancellation
      * @return array{_: 'account.paidMessagesRevenue', stars_amount: int} @see https://docs.madelineproto.xyz/API_docs/types/account.PaidMessagesRevenue.html
      */
-    public function getPaidMessagesRevenue(array|int|string|null $user_id = null, ?int $floodWaitLimit = null, ?string $queueId = null, ?\Amp\Cancellation $cancellation = null): array;
+    public function getPaidMessagesRevenue(array|int|string|null $parent_peer = null, array|int|string|null $user_id = null, ?int $floodWaitLimit = null, ?string $queueId = null, ?\Amp\Cancellation $cancellation = null): array;
+
+    /**
+     *
+     *
+     * @param bool $refund_charged
+     * @param bool $require_payment
+     * @param array|int|string $parent_peer @see https://docs.madelineproto.xyz/API_docs/types/InputPeer.html
+     * @param array|int|string $user_id @see https://docs.madelineproto.xyz/API_docs/types/InputUser.html
+     * @param ?int $floodWaitLimit Can be used to specify a custom flood wait limit: if a FLOOD_WAIT_ rate limiting error is received with a waiting period bigger than this integer, an RPCErrorException will be thrown; otherwise, MadelineProto will simply wait for the specified amount of time. Defaults to the value specified in the settings: https://docs.madelineproto.xyz/PHP/danog/MadelineProto/Settings/RPC.html#setfloodtimeout-int-floodtimeout-self
+     * @param ?string $queueId If specified, ensures strict server-side execution order of concurrent calls with the same queue ID.
+     * @param ?\Amp\Cancellation $cancellation Cancellation
+     */
+    public function toggleNoPaidMessagesException(bool|null $refund_charged = null, bool|null $require_payment = null, array|int|string|null $parent_peer = null, array|int|string|null $user_id = null, ?int $floodWaitLimit = null, ?string $queueId = null, ?\Amp\Cancellation $cancellation = null): bool;
 }
