@@ -56,7 +56,7 @@ final class TLContext
         }
     }
 
-    public function getTypeAtPosition(ExtractFromHereOp|ExtractFromMethodCallOp $_path): string
+    public function getTypeAtPosition(SimpleExtractorOp $_path): string
     {
         if ($_path instanceof ExtractFromHereOp) {
             Assert::eq($this->position, $_path->path[0], "Current constructor {$this->position} does not match expected constructor {$_path->path[0]}");
@@ -123,7 +123,17 @@ interface Op
     public function getType(TLContext $tl): string;
 }
 
-final class CopyMethodCallOp implements Op
+interface SimpleExtractorOp extends Op {
+}
+
+interface ExtractorOrLiteralOp extends SimpleExtractorOp {
+}
+
+interface ActionOp extends Op
+{
+}
+
+final class CopyMethodCallOp implements ActionOp
 {
     public function __construct(private readonly string $method)
     {
@@ -136,11 +146,12 @@ final class CopyMethodCallOp implements Op
 
     public function build(TLContext $tl): array
     {
+        $this->getType($tl); // Validate type
         return ['op' => 'copyMethodCall', 'method' => $this->method];
     }
 }
 
-final class ThemeFormatOp implements Op
+final class ThemeFormatOp implements ExtractorOrLiteralOp
 {
     public function __construct()
     {
@@ -158,7 +169,8 @@ final class ThemeFormatOp implements Op
         ];
     }
 }
-final class ExtractFromHereOp implements Op
+
+final class ExtractFromHereOp implements SimpleExtractorOp
 {
     public function __construct(
         /** @var string[] */
@@ -188,7 +200,7 @@ final class ExtractFromHereOp implements Op
     }
 }
 
-final class ExtractFromMethodCallOp implements Op
+final class ExtractFromMethodCallOp implements SimpleExtractorOp
 {
     public function __construct(
         /** @var string[] */
@@ -218,9 +230,9 @@ final class ExtractFromMethodCallOp implements Op
     }
 }
 
-final class GetInputPeerOp implements Op
+final class GetInputPeerOp implements ExtractorOrLiteralOp
 {
-    public function __construct(private readonly ExtractFromHereOp|ExtractFromMethodCallOp $path)
+    public function __construct(private readonly SimpleExtractorOp $path)
     {
     }
 
@@ -242,9 +254,9 @@ final class GetInputPeerOp implements Op
         ];
     }
 }
-final class GetInputUserOp implements Op
+final class GetInputUserOp implements ExtractorOrLiteralOp
 {
-    public function __construct(private readonly ExtractFromHereOp|ExtractFromMethodCallOp $path)
+    public function __construct(private readonly SimpleExtractorOp $path)
     {
     }
 
@@ -272,9 +284,9 @@ final class GetInputUserOp implements Op
         ];
     }
 }
-final class GetInputChannelOp implements Op
+final class GetInputChannelOp implements ExtractorOrLiteralOp
 {
-    public function __construct(private readonly ExtractFromHereOp|ExtractFromMethodCallOp $path)
+    public function __construct(private readonly SimpleExtractorOp $path)
     {
     }
 
@@ -303,7 +315,7 @@ final class GetInputChannelOp implements Op
     }
 }
 
-final class ArrayOp implements Op
+final class ArrayOp implements ExtractorOrLiteralOp
 {
     /** @var Op[] */
     private readonly array $values;
@@ -330,7 +342,7 @@ final class ArrayOp implements Op
     }
 }
 
-final class LiteralOp implements Op
+final class LiteralOp implements ExtractorOrLiteralOp
 {
     public function __construct(private readonly string $type, private readonly mixed $value)
     {
@@ -352,7 +364,7 @@ final class LiteralOp implements Op
     }
 }
 
-final class GetMessageOp implements Op
+final class GetMessageOp implements ExtractorOrLiteralOp
 {
     public function __construct(
         private readonly Op $peer,
@@ -367,6 +379,8 @@ final class GetMessageOp implements Op
 
     public function build(TLContext $tl): array
     {
+        Assert::eq($this->peer->getType($tl), 'Peer');
+        Assert::eq($this->id->getType($tl), 'int');
         return [
             'op' => 'get_message',
             'peer' => $this->peer->build($tl),
@@ -375,7 +389,7 @@ final class GetMessageOp implements Op
     }
 }
 
-final class CallOp implements Op
+final class CallOp implements ActionOp
 {
     /** @param Op[] $args */
     public function __construct(
@@ -415,7 +429,7 @@ final class CallOp implements Op
         ];
     }
 }
-final class ConstructorOp implements Op
+final class ConstructorOp implements ExtractorOrLiteralOp
 {
     /** @param Op[] $args */
     public function __construct(
