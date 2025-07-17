@@ -12,7 +12,7 @@ $TL->init(new TLSchema);
 
 $locations = [];
 
-final class TLContext
+final readonly class TLContext
 {
     public function __construct(
         public readonly TLInterface $tl,
@@ -144,7 +144,7 @@ interface ActionOp extends Op
 {
 }
 
-final class Noop implements ActionOp
+final readonly class Noop implements ActionOp
 {
     public function __construct(private readonly string $why)
     {
@@ -171,7 +171,7 @@ final class Noop implements ActionOp
     }
 }
 
-final class CopyMethodCallOp implements ActionOp
+final readonly class CopyMethodCallOp implements ActionOp
 {
     public function __construct(private readonly string $method)
     {
@@ -198,7 +198,7 @@ final class CopyMethodCallOp implements ActionOp
     }
 }
 
-final class ThemeFormatOp implements ExtractorOrLiteralOp
+final readonly class ThemeFormatOp implements ExtractorOrLiteralOp
 {
     public function __construct()
     {
@@ -225,7 +225,7 @@ final class ThemeFormatOp implements ExtractorOrLiteralOp
     }
 }
 
-final class ExtractFromHereOp implements SimpleExtractorOp
+final readonly class ExtractFromHereOp implements SimpleExtractorOp
 {
     public function __construct(
         /** @var string[] */
@@ -286,7 +286,7 @@ final class ExtractFromHereOp implements SimpleExtractorOp
     }
 }
 
-final class ExtractFromMethodCallOp implements SimpleExtractorOp
+final readonly class ExtractFromMethodCallOp implements SimpleExtractorOp
 {
     public function __construct(
         /** @var string[] */
@@ -347,7 +347,7 @@ final class ExtractFromMethodCallOp implements SimpleExtractorOp
     }
 }
 
-final class ExtractStickerSetFromDocumentAttributesOp implements SimpleExtractorOp
+final readonly class ExtractStickerSetFromDocumentAttributesOp implements SimpleExtractorOp
 {
     public function __construct(
         private readonly SimpleExtractorOp $path,
@@ -386,7 +386,7 @@ final class ExtractStickerSetFromDocumentAttributesOp implements SimpleExtractor
     }
 }
 
-final class GetInputPeerOp implements ExtractorOrLiteralOp
+final readonly class GetInputPeerOp implements ExtractorOrLiteralOp
 {
     public function __construct(private readonly SimpleExtractorOp $path)
     {
@@ -425,7 +425,7 @@ final class GetInputPeerOp implements ExtractorOrLiteralOp
         ];
     }
 }
-final class GetInputUserOp implements ExtractorOrLiteralOp
+final readonly class GetInputUserOp implements ExtractorOrLiteralOp
 {
     public function __construct(private readonly SimpleExtractorOp $path)
     {
@@ -470,7 +470,7 @@ final class GetInputUserOp implements ExtractorOrLiteralOp
         ];
     }
 }
-final class GetInputChannelOp implements ExtractorOrLiteralOp
+final readonly class GetInputChannelOp implements ExtractorOrLiteralOp
 {
     public function __construct(private readonly SimpleExtractorOp $path)
     {
@@ -516,7 +516,7 @@ final class GetInputChannelOp implements ExtractorOrLiteralOp
     }
 }
 
-final class ArrayOp implements ExtractorOrLiteralOp
+final readonly class ArrayOp implements ExtractorOrLiteralOp
 {
     /** @var Op[] */
     private readonly array $values;
@@ -571,7 +571,7 @@ final class ArrayOp implements ExtractorOrLiteralOp
     }
 }
 
-final class LiteralOp implements ExtractorOrLiteralOp
+final readonly class LiteralOp implements ExtractorOrLiteralOp
 {
     public function __construct(private readonly string $type, private readonly mixed $value)
     {
@@ -601,7 +601,7 @@ final class LiteralOp implements ExtractorOrLiteralOp
     }
 }
 
-final class GetMessageOp implements ActionOp
+final readonly class GetMessageOp implements ActionOp
 {
     public function __construct(
         private readonly Op $peer,
@@ -644,7 +644,7 @@ final class GetMessageOp implements ActionOp
     }
 }
 
-final class CallOp implements ActionOp
+final readonly class CallOp implements ActionOp
 {
     /** @param Op[] $args */
     public function __construct(
@@ -711,7 +711,7 @@ final class CallOp implements ActionOp
         ];
     }
 }
-final class ConstructorOp implements ExtractorOrLiteralOp
+final readonly class ConstructorOp implements ExtractorOrLiteralOp
 {
     /** @param Op[] $args */
     public function __construct(
@@ -978,6 +978,8 @@ $locations['photo'][] = new CallOp(
         'limit' => new LiteralOp('int', 1),
     ]
 );
+$locations['messages.getInlineBotResults'][]= new Noop('Inline bot results are ephemeral');
+$locations['messages.getPreparedInlineMessage'][]= new Noop('Inline bot results are ephemeral');
 
 $locations['messages.uploadMedia'][]= new Noop('A freshly uploaded media file will obtain a context only once it is sent to a chat');
 
@@ -999,6 +1001,11 @@ foreach (['payments.ResaleStarGifts', 'payments.StarGiftUpgradePreview', 'StarGi
 }
 
 $recurse = static function (Closure $onStackEnd, string $type, array &$stack, array &$stackTypes) use ($TL, &$recurse): void {
+    if ($type === 'Update' || $type === 'Updates') {
+        $onStackEnd($stack);
+        return;
+    }
+
     $pos = count($stack);
     $found = false;
     foreach ([...$TL->getConstructors()->by_id, ...$TL->getMethods()->by_id] as $constructor) {
@@ -1086,20 +1093,10 @@ foreach ($fileRefs as $type => $constructor) {
     $stack = [$constructor];
     $stackTypes = [$type => true];
     $recurse(
-        static function (array $stack) use ($locations): void {
+        static function (array $stack) use ($locations, $TL, &$normalizedLocations): void {
             if (end($stack) === 'messages.getWebPagePreview'
-                || end($stack) === 'help.appUpdate'
-                || (
-                    in_array($stack[0], ['photo', 'document'], true)
-                    && ($stack[1] ?? null) === 'game'
-                    && in_array(end($stack), [
-                        'messages.getWebPagePreview',
-                        'messages.invitedUsers',
-                        'payments.paymentResult',
-                    ], true)
-                ) || array_intersect(
+                || array_intersect(
                     [
-                        'updateServiceNotification',
                         'updateShortSentMessage',
                         'updateShortMessage',
                         'updateShortChatMessage',
@@ -1111,9 +1108,9 @@ foreach ($fileRefs as $type => $constructor) {
             }
             $slice = [];
             $had = false;
+            $top = $stack[0];
             for ($x = count($stack)-1; $x >= 0; $x--) {
                 $constructor = $stack[$x];
-                $slice[] = $constructor;
                 if (isset($locations[$constructor])) {
                     foreach ($locations[$constructor] as $op) {
                         $normalized = $op->normalize($slice);
@@ -1121,9 +1118,10 @@ foreach ($fileRefs as $type => $constructor) {
                             continue;
                         }
                         $had = true;
-                        $normalizedLocations[$constructor][] = $normalized;
+                        $normalizedLocations[$top][] = $normalized;//->build(new TLContext($TL, $constructor));
                     }
                 }
+                $slice[] = $constructor;
             }
             if (!$had) {
                 throw new AssertionError("Uncovered path: " . json_encode($stack));
@@ -1134,3 +1132,5 @@ foreach ($fileRefs as $type => $constructor) {
         $stackTypes,
     );
 }
+
+var_dump($normalizedLocations);
