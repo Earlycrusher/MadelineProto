@@ -7,17 +7,45 @@ use Webmozart\Assert\Assert;
 
 require 'vendor/autoload.php';
 
-$TL = new TL(null);
-$TL->init(new TLSchema);
+final readonly class TLWrapper
+{
+    private array $constructorsOfType;
+    private array $methodsOfType;
+    public function __construct(
+        public readonly TLInterface $tl,
+        public ?string $position = null,
+        public bool $normalized = false,
+    ) {
+        $constructorsOfType = [];
+        $methodsOfType = [];
+        foreach ($tl->getConstructors()->by_id as $constructor) {
+            $t = $constructor['type'];
+            $constructorsOfType[$t][$constructor['predicate']] = $constructor;
+        }
+        foreach ($tl->getMethods()->by_id as $method) {
+            $t = isset($method['subtype']) ? "Vector<{$method['subtype']}>" : $method['type'];
+            $methodsOfType[$t][$method['method']] = $method;
+        }
+        $this->constructorsOfType = $constructorsOfType;
+        $this->methodsOfType = $methodsOfType;
+    }
 
-$locations = [];
-
+    public function getConstructorsOfType(string $type, bool $methods, bool $ignoreEmpty = false): array
+    {
+        $t = $methods ? ($this->methodsOfType[$type] ?? []) : ($this->constructorsOfType[$type] ?? []);
+        $methods = $methods ? 'methods' : 'constructors';
+        if (!$ignoreEmpty) {
+            Assert::notEmpty($t, "No {$methods} found for type: $type");
+        }
+        return $t;
+    }
+}
 final readonly class TLContext
 {
     public function __construct(
-        public readonly TLInterface $tl,
-        public readonly string $position,
-        private readonly bool $normalized = false,
+        public TLWrapper $tl,
+        public ?string $position = null,
+        public bool $normalized = false,
     ) {
     }
 
@@ -27,9 +55,9 @@ final readonly class TLContext
     public function validateParams(string $constructor, bool $isCons, array $params): void
     {
         if ($isCons) {
-            $data = $this->tl->getConstructors()->findByPredicate($constructor);
+            $data = $this->tl->tl->getConstructors()->findByPredicate($constructor);
         } else {
-            $data = $this->tl->getMethods()->findByMethod($constructor);
+            $data = $this->tl->tl->getMethods()->findByMethod($constructor);
         }
         Assert::notFalse($data, "Constructor or method not found for $constructor");
         foreach ($data['params'] as $param) {
@@ -68,20 +96,19 @@ final readonly class TLContext
         $hadFlag = false;
         do {
             if ($realType !== null
-                && !isset(self::getConstructorsOfType($this->tl, $realType, true, true)[$path[$idx]])
-                && !isset(self::getConstructorsOfType($this->tl, $realType, false, true)[$path[$idx]])
+                && !isset($this->tl->getConstructorsOfType($realType, true, true)[$path[$idx]])
+                && !isset($this->tl->getConstructorsOfType($realType, false, true)[$path[$idx]])
             ) {
                 throw new AssertionError("{$path[$idx]} is NOT a constructor of type $type, path: " . json_encode($path));
             }
-            $constructor = $this->tl->getConstructors()->findByPredicate($path[$idx]);
+            $constructor = $this->tl->tl->getConstructors()->findByPredicate($path[$idx]);
             if ($constructor === false) {
-                $constructor = $this->tl->getMethods()->findByMethod($path[$idx]);
+                $constructor = $this->tl->tl->getMethods()->findByMethod($path[$idx]);
             }
             Assert::notFalse($constructor, "Constructor or method not found for path: " . json_encode($path));
 
             $idx++;
             $type = null;
-            $realType = null;
             if ($path[$idx] === '') {
                 Assert::true(isset($constructor['method']), "Expected method at position $idx in path: " . json_encode($path));
                 $type = $constructor['type'];
@@ -108,28 +135,6 @@ final readonly class TLContext
 
         return $type;
     }
-    public static function getConstructorsOfType(TLInterface $tl, string $type, bool $methods, bool $ignoreEmpty = false): array
-    {
-        $constructors = [];
-        if ($methods) {
-            foreach ($tl->getMethods()->by_id as $method) {
-                if ($method['type'] === $type) {
-                    $constructors[$method['method']] = $method;
-                }
-            }
-        } else {
-            foreach ($tl->getConstructors()->by_id as $constructor) {
-                if ($constructor['type'] === $type) {
-                    $constructors[$constructor['predicate']] = $constructor;
-                }
-            }
-        }
-        $methods = $methods ? 'methods' : 'constructors';
-        if (!$ignoreEmpty) {
-            Assert::notEmpty($constructors, "No {$methods} found for type: $type");
-        }
-        return $constructors;
-    }
 }
 
 interface Op
@@ -140,7 +145,7 @@ interface Op
 
     public function hasBackreference(): bool;
 
-    public function normalize(array $stack): ?Op;
+    public function normalize(array $stack, string $current): ?Op;
 }
 
 interface SimpleExtractorOp extends Op
@@ -171,7 +176,7 @@ final readonly class Noop implements ActionOp
         return false;
     }
 
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
         return $this;
     }
@@ -192,13 +197,15 @@ final readonly class CopyMethodCallOp implements ActionOp
         return false;
     }
 
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
+        Assert::eq($current, $this->method);
+        Assert::isEmpty($stack);
         return $this;
     }
     public function getType(TLContext $tl): string
     {
-        return $tl->tl->getMethods()->findByMethod($this->method)['type'];
+        return $tl->tl->tl->getMethods()->findByMethod($this->method)['type'];
     }
 
     public function build(TLContext $tl): array
@@ -219,7 +226,7 @@ final readonly class ThemeFormatOp implements ExtractorOrLiteralOp
     {
         return false;
     }
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
         return $this;
     }
@@ -257,12 +264,13 @@ final readonly class ExtractFromHereOp implements SimpleExtractorOp
         return false;
     }
 
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
-        $if = $this->ifEmptyFlag?->normalize($stack);
+        $if = $this->ifEmptyFlag?->normalize($stack, $current);
         if ($if === null && $this->ifEmptyFlag !== null) {
             return null;
         }
+        Assert::eq($current, $this->path[0]);
         return new self(
             [...$stack, ...$this->path],
             $this->isFlag,
@@ -315,12 +323,12 @@ final readonly class ExtractFromMethodCallOp implements SimpleExtractorOp
         return true;
     }
 
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
         if ($stack[0] !== $this->path[0]) {
             return null;
         }
-        $if = $this->ifEmptyFlag?->normalize($stack);
+        $if = $this->ifEmptyFlag?->normalize($stack, $current);
         if ($if === null && $this->ifEmptyFlag !== null) {
             return null;
         }
@@ -370,9 +378,9 @@ final readonly class ExtractStickerSetFromDocumentAttributesOp implements Simple
         return $this->path->hasBackreference();
     }
 
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
-        $path = $this->path->normalize($stack);
+        $path = $this->path->normalize($stack, $current);
         if ($path === null) {
             return null;
         }
@@ -407,9 +415,9 @@ final readonly class GetInputPeerOp implements ExtractorOrLiteralOp
     {
         return $this->path->hasBackreference();
     }
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
-        $path = $this->path->normalize($stack);
+        $path = $this->path->normalize($stack, $current);
         if ($path === null) {
             return null;
         }
@@ -442,9 +450,9 @@ final readonly class GetInputUserOp implements ExtractorOrLiteralOp
     {
     }
 
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
-        $path = $this->path->normalize($stack);
+        $path = $this->path->normalize($stack, $current);
         if ($path === null) {
             return null;
         }
@@ -487,9 +495,9 @@ final readonly class GetInputChannelOp implements ExtractorOrLiteralOp
     {
     }
 
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
-        $path = $this->path->normalize($stack);
+        $path = $this->path->normalize($stack, $current);
         if ($path === null) {
             return null;
         }
@@ -544,12 +552,12 @@ final readonly class ArrayOp implements ExtractorOrLiteralOp
         }
         return false;
     }
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
         $final = [];
         $isDifferent = false;
         foreach ($this->values as $value) {
-            $normalized = $value->normalize($stack);
+            $normalized = $value->normalize($stack, $current);
             if ($normalized === null) {
                 return null;
             }
@@ -593,7 +601,7 @@ final readonly class LiteralOp implements ExtractorOrLiteralOp
     {
         return false;
     }
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
         return $this;
     }
@@ -619,13 +627,13 @@ final readonly class GetMessageOp implements ActionOp
         private readonly Op $id,
     ) {
     }
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
-        $peer = $this->peer->normalize($stack);
+        $peer = $this->peer->normalize($stack, $current);
         if ($peer === null) {
             return null;
         }
-        $id = $this->id->normalize($stack);
+        $id = $this->id->normalize($stack, $current);
         if ($id === null) {
             return null;
         }
@@ -672,12 +680,12 @@ final readonly class CallOp implements ActionOp
         }
         return false;
     }
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
         $final = [];
         $isDifferent = false;
         foreach ($this->args as $from => $to) {
-            $normalized = $to->normalize($stack);
+            $normalized = $to->normalize($stack, $current);
             if ($normalized === null) {
                 return null;
             }
@@ -731,12 +739,12 @@ final readonly class ConstructorOp implements ExtractorOrLiteralOp
     ) {
     }
 
-    public function normalize(array $stack): ?Op
+    public function normalize(array $stack, string $current): ?Op
     {
         $final = [];
         $isDifferent = false;
         foreach ($this->args as $from => $to) {
-            $normalized = $to->normalize($stack);
+            $normalized = $to->normalize($stack, $current);
             if ($normalized === null) {
                 return null;
             }
@@ -762,7 +770,7 @@ final readonly class ConstructorOp implements ExtractorOrLiteralOp
 
     public function getType(TLContext $tl): string
     {
-        return $tl->tl->getConstructors()->findByPredicate($this->constructor)['type'];
+        return $tl->tl->tl->getConstructors()->findByPredicate($this->constructor)['type'];
     }
 
     public function build(TLContext $tl): array
@@ -780,7 +788,13 @@ final readonly class ConstructorOp implements ExtractorOrLiteralOp
     }
 }
 
-foreach (TLContext::getConstructorsOfType($TL, 'Message', false) as $constructor => $_) {
+$TL = new TL(null);
+$TL->init(new TLSchema);
+
+$TL = new TLWrapper($TL);
+$locations = [];
+
+foreach ($TL->getConstructorsOfType('Message', false) as $constructor => $_) {
     if ($constructor === 'messageEmpty') {
         continue;
     }
@@ -819,7 +833,17 @@ $locations['channelAdminLogEvent'][] = new CallOp(
         'q' => new LiteralOp('string', ''),
     ]
 );
+$locations['bots.getPreviewMedias'][] = new CopyMethodCallOp('bots.getPreviewMedias');
 $locations['bots.getPreviewInfo'][] = new CopyMethodCallOp('bots.getPreviewInfo');
+$locations['bots.addPreviewMedia'][] = new CallOp('bots.getPreviewInfo', [
+    'bot' => new ExtractFromHereOp(['bots.addPreviewMedia', 'bot']),
+    'lang_code' => new ExtractFromHereOp(['bots.addPreviewMedia', 'lang_code']),
+]);
+$locations['bots.editPreviewMedia'][] = new CallOp('bots.getPreviewInfo', [
+    'bot' => new ExtractFromHereOp(['bots.editPreviewMedia', 'bot']),
+    'lang_code' => new ExtractFromHereOp(['bots.editPreviewMedia', 'lang_code']),
+]);
+
 $locations['updateMessageExtendedMedia'][] = new CallOp(
     'messages.getExtendedMedia',
     [
@@ -846,7 +870,7 @@ $locations['channelFull'][] = new CallOp(
     ]
 );
 $locations['help.getPremiumPromo'][] = new CopyMethodCallOp('help.getPremiumPromo');
-foreach (TLContext::getConstructorsOfType($TL, 'payments.StarsStatus', true) as $method => $_) {
+foreach ($TL->getConstructorsOfType('payments.StarsStatus', true) as $method => $_) {
     $locations['starsTransaction'][] = new CallOp(
         'payments.getStarsTransactionsByID',
         [
@@ -1004,9 +1028,11 @@ $locations['document'][] = new CallOp(
 $locations['messages.getDocumentByHash'][] = new CopyMethodCallOp('messages.getDocumentByHash');
 $locations['updateServiceNotification'][] = new Noop('Cannot refetch service notifications');
 
+$locations['messages.getWebPagePreview'][] = new Noop("No locations are added for the method call, as it doesn't use persistent IDs as input; the location is instead extracted from the persistent IDs in the returned WebPage object");
+
 // Ignore these for now
 foreach (['payments.ResaleStarGifts', 'payments.StarGiftUpgradePreview', 'StarGift'] as $type) {
-    foreach (TLContext::getConstructorsOfType($TL, $type, false) as $constructor => $_) {
+    foreach ($TL->getConstructorsOfType($type, false) as $constructor => $_) {
         $locations[$constructor][] = new Noop('Contexts for star gifts are not yet implemented');
     }
 }
@@ -1020,7 +1046,7 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
     $posName = count($stack);
     $pos = count($stack)+1;
     $found = false;
-    foreach ([...$TL->getConstructors()->by_id, ...$TL->getMethods()->by_id] as $constructor) {
+    foreach ([...$TL->tl->getConstructors()->by_id, ...$TL->tl->getMethods()->by_id] as $constructor) {
         $predicate = $constructor['predicate'] ?? $constructor['method'];
         if ($predicate === 'updateShortMessage' || $predicate === 'updateShortChatMessage' || $predicate === 'updateShortSentMessage') {
             // Assume these are converted to message constructors by the client.
@@ -1034,7 +1060,10 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
         foreach ($constructor['params'] as $param) {
             if ((
                 $param['type'] === $type ||
-                ($param['subtype'] ?? null) === $type
+                (
+                    isset($param['subtype'])
+                    && "Vector<{$param['subtype']}>" === $type
+                )
             )) {
                 $stack[$posName] = $param['name'];
                 $stack[$pos] = $predicate;
@@ -1049,7 +1078,12 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
     unset($stack[$pos], $stack[$posName]);
 
     if (!$found) {
-        foreach (TLContext::getConstructorsOfType($TL, $type, true, true) as $method => $data) {
+        foreach ($TL->getConstructorsOfType($type, true, true) as $method => $data) {
+            $stack[$posName] = '';
+            $stack[$pos] = $method;
+            $onStackEnd($stack);
+        }
+        foreach ($TL->getConstructorsOfType("Vector<$type>", true, true) as $method => $data) {
             $stack[$posName] = '';
             $stack[$pos] = $method;
             $onStackEnd($stack);
@@ -1064,67 +1098,21 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
 
 $fileRefs = ['Document' => 'document', 'Photo' => 'photo'];
 
-$locationTypes = [];
-
 foreach ($locations as $constructor => $ops) {
-    foreach ($ops as $op) {
-        if ($op->hasBackreference()) {
-            continue 2;
-        }
-    }
-    $t = $TL->getConstructors()->findByPredicate($constructor)['type'] ?? $TL->getMethods()->findByMethod($constructor)['type'];
-    if (isset($locationTypes[$t])) {
-        continue;
-    }
-
-    $hasAllConstructors = true;
-    foreach (TLContext::getConstructorsOfType($TL, $t, false, true) as $constructor => $data) {
-        if (!isset($locations[$constructor]) && $data['params']) {
-            $hasAllConstructors = false;
-            break;
-        }
-    }
-    if ($hasAllConstructors) {
-        $locationTypes[$t] = true;
-        continue;
-    }
-    $methods = TLContext::getConstructorsOfType($TL, $t, true, true);
-    $hasAllMethods = (bool) $methods;
-    foreach ($methods as $constructor => $_) {
-        if (!isset($locations[$constructor])) {
-            $hasAllMethods = false;
-            break;
-        }
-    }
-    $locationTypes[$t] = $hasAllMethods;
-}
-$locationTypes = array_filter($locationTypes);
-
-foreach ($locations as $constructor => $ops) {
-    var_dump("Processing $constructor");
+    //var_dump("Processing $constructor");
     foreach ($ops as $op) {
         $op->build(new TLContext($TL, $constructor));
     }
 }
 var_dump("Finished initial validation");
 
-$normalizedLocations = [];
+$validated = [];
 
 foreach ($fileRefs as $type => $constructor) {
     $stack = [$constructor];
     $stackTypes = [$type => true];
     $recurse(
-        static function (array $stack) use ($locations, $TL, &$normalizedLocations): void {
-            if (count($stack) >= 5 &&
-                $stack[count($stack)-1] === 'messages.getWebPagePreview' &&
-                $stack[count($stack)-2] === '' &&
-                $stack[count($stack)-3] === 'messages.webPagePreview' &&
-                $stack[count($stack)-4] === 'media' &&
-                $stack[count($stack)-5] !== 'messageMediaWebPage'
-            ) {
-                return;
-            }
-
+        static function (array $stack) use ($locations, $TL, &$validated): void {
             $slice = [];
             $had = false;
             $top = end($stack);
@@ -1136,12 +1124,13 @@ foreach ($fileRefs as $type => $constructor) {
                 }
                 if (isset($locations[$constructor])) {
                     foreach ($locations[$constructor] as $op) {
-                        $normalized = $op->normalize($slice);
+                        $normalized = $op->normalize($slice, $constructor);
                         if ($normalized === null) {
                             continue;
                         }
                         $had = true;
-                        $normalizedLocations[$top][] = $normalized->build(new TLContext($TL, $top, true));
+                        $normalized->build(new TLContext($TL, $top, true));
+                        $validated[$constructor][] = $op;
                     }
                 }
                 $slice[] = $constructor;
@@ -1156,4 +1145,19 @@ foreach ($fileRefs as $type => $constructor) {
     );
 }
 
-var_dump($normalizedLocations);
+$diff = [];
+foreach ($locations as $constructor => $ops) {
+    if (isset($validated[$constructor])) {
+        $d = array_udiff($ops, $validated[$constructor], static fn ($a, $b) => spl_object_id($a) <=> spl_object_id($b));
+        if ($d) {
+            $diff[$constructor] = $d;
+        }
+        continue;
+    }
+    $diff[$constructor] = $ops;
+}
+if ($diff) {
+    var_dump($diff);
+    throw new AssertionError("Leftover ops!");
+}
+var_dump("Finished recursive validation");
