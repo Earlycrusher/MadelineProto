@@ -30,12 +30,19 @@ final readonly class TLWrapper
         $this->methodsOfType = $methodsOfType;
     }
 
-    public function getConstructorsOfType(string $type, bool $methods, bool $ignoreEmpty = false): array
+    public function getConstructorsOfType(string $type, bool $ignoreEmpty = false): array
     {
-        $t = $methods ? ($this->methodsOfType[$type] ?? []) : ($this->constructorsOfType[$type] ?? []);
-        $methods = $methods ? 'methods' : 'constructors';
+        $t = $this->constructorsOfType[$type] ?? [];
         if (!$ignoreEmpty) {
-            Assert::notEmpty($t, "No {$methods} found for type: $type");
+            Assert::notEmpty($t, "No constructors found for type: $type");
+        }
+        return $t;
+    }
+    public function getMethodsOfType(string $type, bool $ignoreEmpty = false): array
+    {
+        $t = $this->methodsOfType[$type] ?? [];
+        if (!$ignoreEmpty) {
+            Assert::notEmpty($t, "No methods found for type: $type");
         }
         return $t;
     }
@@ -96,8 +103,8 @@ final readonly class TLContext
         $hadFlag = false;
         do {
             if ($realType !== null
-                && !isset($this->tl->getConstructorsOfType($realType, true, true)[$path[$idx]])
-                && !isset($this->tl->getConstructorsOfType($realType, false, true)[$path[$idx]])
+                && !isset($this->tl->getConstructorsOfType($realType, true)[$path[$idx]])
+                && !isset($this->tl->getMethodsOfType($realType, true)[$path[$idx]])
             ) {
                 throw new AssertionError("{$path[$idx]} is NOT a constructor of type $type, path: " . json_encode($path));
             }
@@ -794,7 +801,7 @@ $TL->init(new TLSchema);
 $TL = new TLWrapper($TL);
 $locations = [];
 
-foreach ($TL->getConstructorsOfType('Message', false) as $constructor => $_) {
+foreach ($TL->getConstructorsOfType('Message') as $constructor => $_) {
     if ($constructor === 'messageEmpty') {
         continue;
     }
@@ -870,7 +877,7 @@ $locations['channelFull'][] = new CallOp(
     ]
 );
 $locations['help.getPremiumPromo'][] = new CopyMethodCallOp('help.getPremiumPromo');
-foreach ($TL->getConstructorsOfType('payments.StarsStatus', true) as $method => $_) {
+foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
     $locations['starsTransaction'][] = new CallOp(
         'payments.getStarsTransactionsByID',
         [
@@ -962,10 +969,10 @@ $locations['messages.savedGifs'][] = new CallOp('messages.getSavedGifs', ['hash'
 foreach (['account.savedRingtones', 'account.savedRingtoneConverted', 'account.uploadRingtone'] as $c) {
     $locations[$c][] = new CallOp('account.getSavedRingtones', ['hash' => new LiteralOp('long', 0)]);
 }
-$locations['recentMeUrlChatInvite'][] = new CallOp(
-    'messages.checkChatInvite',
-    ['hash' => new ExtractFromHereOp(['recentMeUrlChatInvite', 'url'])],
-);
+
+$locations['recentMeUrlChatInvite'][] = new Noop('Do not store references based on chat invite links');
+$locations['messages.checkChatInvite'][] = new Noop('Do not store references based on chat invite links');
+
 $locations['messages.availableEffects'][] = new CallOp(
     'messages.getAvailableEffects',
     ['hash' => new LiteralOp('int', 0)],
@@ -1017,6 +1024,7 @@ $locations['messages.getInlineBotResults'][]= new Noop('Inline bot results are e
 $locations['messages.getPreparedInlineMessage'][]= new Noop('Inline bot results are ephemeral');
 
 $locations['messages.uploadMedia'][]= new Noop('A freshly uploaded media file will obtain a context only once it is sent to a chat');
+$locations['messages.uploadImportedMedia'][]= new Noop('A freshly uploaded media file will obtain a context only once it is sent to a chat');
 
 $locations['document'][] = new CallOp(
     'messages.getStickerSet',
@@ -1032,7 +1040,7 @@ $locations['messages.getWebPagePreview'][] = new Noop("No locations are added fo
 
 // Ignore these for now
 foreach (['payments.ResaleStarGifts', 'payments.StarGiftUpgradePreview', 'StarGift'] as $type) {
-    foreach ($TL->getConstructorsOfType($type, false) as $constructor => $_) {
+    foreach ($TL->getConstructorsOfType($type) as $constructor => $_) {
         $locations[$constructor][] = new Noop('Contexts for star gifts are not yet implemented');
     }
 }
@@ -1062,7 +1070,7 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
                 $param['type'] === $type ||
                 (
                     isset($param['subtype'])
-                    && "Vector<{$param['subtype']}>" === $type
+                    && $param['subtype'] === $type
                 )
             )) {
                 $stack[$posName] = $param['name'];
@@ -1075,25 +1083,17 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
         }
         unset($stackTypes[$t]);
     }
-    unset($stack[$pos], $stack[$posName]);
-
-    if (!$found) {
-        foreach ($TL->getConstructorsOfType($type, true, true) as $method => $data) {
-            $stack[$posName] = '';
-            $stack[$pos] = $method;
-            $onStackEnd($stack);
-        }
-        foreach ($TL->getConstructorsOfType("Vector<$type>", true, true) as $method => $data) {
-            $stack[$posName] = '';
-            $stack[$pos] = $method;
-            $onStackEnd($stack);
-        }
-        unset($stack[$posName], $stack[$pos]);
-
-    } elseif ($type === 'Update') {
+    foreach ($TL->getMethodsOfType($type, true) as $method => $data) {
+        $stack[$posName] = '';
+        $stack[$pos] = $method;
         $onStackEnd($stack);
     }
-
+    foreach ($TL->getMethodsOfType("Vector<$type>", true) as $method => $data) {
+        $stack[$posName] = '';
+        $stack[$pos] = $method;
+        $onStackEnd($stack);
+    }
+    unset($stack[$posName], $stack[$pos]);
 };
 
 $fileRefs = ['Document' => 'document', 'Photo' => 'photo'];
