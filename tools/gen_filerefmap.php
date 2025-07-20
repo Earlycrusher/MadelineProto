@@ -298,9 +298,12 @@ foreach (['payments.ResaleStarGifts', 'payments.StarGiftUpgradePreview', 'StarGi
 }
 
 $recurse = static function (Closure $onStackEnd, string $type, array &$stack, array &$stackTypes) use ($TL, &$recurse): void {
-    if ($type === 'Update' || $type === 'Updates' || $type === 'PeerStories') {
+    if ($type === 'Update' || $type === 'Updates') {
         $onStackEnd($stack);
         return;
+    }
+    if ($type === 'PeerStories') {
+        $onStackEnd($stack);
     }
 
     $pos = count($stack);
@@ -408,6 +411,7 @@ foreach ($fileRefs as $type => $constructor) {
                     if ($cons === 'webPageAttributeStory'
                         || $cons === 'foundStory'
                         || $cons === 'publicForwardStory'
+                        || $cons === 'peerStories'
                     ) {
                         return;
                     }
