@@ -24,20 +24,31 @@ use Webmozart\Assert\Assert;
 
 abstract readonly class FieldExtractorOp implements TypedOp
 {
-    final public function __construct(
-        /** @var list<list{0: string, 1: string, 2?: TypedOp|'*'|null}> */
+    final public const FLAG_UNPACK_ARRAY = 1;
+    final public const FLAG_IF_ABSENT_ABORT = 2;
+    final public const FLAG_PASSTHROUGH = 4;
+    public function __construct(
+        /** @var list<list{0: string, 1: string, 2?: int-mask-of<self::FLAG_*>|TypedOp}> */
         public array $path,
     ) {
-        foreach ($path as $elem) {
+        foreach ($path as $k => $elem) {
             if (\count($elem) !== 2 && \count($elem) !== 3) {
                 throw new \InvalidArgumentException('Invalid path part: ' . json_encode($path));
             }
-            if (isset($elem[2])
-                && !$elem[2] instanceof TypedOp
-                && $elem[2] !== true
-                && $elem[2] !== '*'
-            ) {
-                throw new \InvalidArgumentException('Invalid path part: ' . json_encode($path));
+            if (isset($elem[2])) {
+                if (!$elem[2] instanceof TypedOp
+                && !\is_int($elem[2])
+                ) {
+                    throw new \InvalidArgumentException('Invalid path part: ' . json_encode($path));
+                }
+                if (\is_int($elem[2])) {
+                    if (($elem[2] & (self::FLAG_IF_ABSENT_ABORT | self::FLAG_PASSTHROUGH)) === 6) {
+                        throw new \InvalidArgumentException('Cannot use abort and passthrough flag at the same time: ' . json_encode($path));
+                    }
+                    if ($k !== \count($path) - 1 && ($elem[2] & self::FLAG_PASSTHROUGH) !== 0) {
+                        throw new \InvalidArgumentException('Can only use passthrough flag on last element: ' . json_encode($path));
+                    }
+                }
             }
         }
     }
@@ -50,23 +61,22 @@ abstract readonly class FieldExtractorOp implements TypedOp
         }
         $path = $path->path;
         $idx = 0;
-        $type = null;
-        $realType = null;
+        $typeForReturn = null;
+        $typeForCheck = null;
         do {
             [$requiredConstructor, $requiredParam] = $path[$idx];
-            $expectFlag = \array_key_exists(2, $path[$idx]);
-            $alternativeFlagType = $path[$idx][2] ?? null;
+            $expectFlag = $path[$idx][2] ?? null;
 
-            if ($realType !== null) {
-                $consOfType = $tl->tl->getConstructorsOfType($realType, true);
-                $methodsOfType = $tl->tl->getMethodsOfType($realType, true);
+            if ($typeForCheck !== null) {
+                $consOfType = $tl->tl->getConstructorsOfType($typeForCheck, true);
+                $methodsOfType = $tl->tl->getMethodsOfType($typeForCheck, true);
 
                 if (isset($consOfType[$requiredConstructor])) {
                     // OK
                 } elseif (isset($methodsOfType[$requiredConstructor])) {
                     // OK
                 } else {
-                    throw new AssertionError("{$requiredConstructor} is NOT a constructor of type $type, path");
+                    throw new AssertionError("{$requiredConstructor} is NOT a constructor of type $typeForReturn, path: ".json_encode($path));
                 }
             }
             $constructor = $tl->tl->tl->getConstructors()->findByPredicate($requiredConstructor);
@@ -75,40 +85,70 @@ abstract readonly class FieldExtractorOp implements TypedOp
             }
             Assert::notFalse($constructor, "Constructor or method not found for path");
 
-            $type = null;
+            $typeForReturn = null;
             if ($requiredParam === '') {
                 Assert::true(isset($constructor['method']), "Expected method at position $idx in path ".json_encode($path));
-                $type = $constructor['type'];
-                $realType = $constructor['subtype'] ?? $constructor['type'];
-                Assert::false($expectFlag);
+                $param = $constructor;
+                if (isset($param['subtype'])) {
+                    if ($expectFlag & self::FLAG_UNPACK_ARRAY) {
+                        $typeForReturn = "Vector<{$param['subtype']}>";
+                        $typeForCheck = $param['subtype'];
+                    } else {
+                        $typeForReturn = "Vector<{$param['subtype']}>";
+                        $typeForCheck = "Vector<{$param['subtype']}>";
+                    }
+                } else {
+                    $typeForReturn = $param['type'];
+                    $typeForCheck = $param['type'];
+                    if (\is_int($expectFlag)) {
+                        Assert::eq($expectFlag & self::FLAG_UNPACK_ARRAY, 0, "Expected no flag array at position $idx in path ".json_encode($path));
+                    }
+                }
                 continue;
             }
             $n = $constructor['predicate'] ?? $constructor['method'];
             foreach ($constructor['params'] as $param) {
                 if ($param['name'] === $requiredParam) {
-                    $type = isset($param['subtype']) ? "Vector<{$param['subtype']}>" : $param['type'];
-                    $realType = $param['subtype'] ?? $param['type'];
-                    $isFlag = isset($param['pow']);
-                    if ($isFlag !== $expectFlag) {
-                        $isFlag = $isFlag ? 'flag' : 'no flag';
-                        $expectFlag = $expectFlag ? 'flag' : 'no flag';
-                        throw new AssertionError("Expected $expectFlag, got $isFlag for $requiredConstructor.$requiredParam at position $idx in path ".json_encode($path));
-                    }
-                    if ($isFlag) {
-                        if ($alternativeFlagType instanceof TypedOp) {
-                            Assert::eq($type, $alternativeFlagType->getType($tl), "Expected flag type at position $idx in path ".json_encode($path));
-                        } elseif ($alternativeFlagType === true) {
-                            Assert::eq($type, 'true');
+                    if (isset($param['subtype'])) {
+                        if ($expectFlag & self::FLAG_UNPACK_ARRAY) {
+                            $typeForReturn = "Vector<{$param['subtype']}>";
+                            $typeForCheck = $param['subtype'];
+                        } else {
+                            $typeForReturn = "Vector<{$param['subtype']}>";
+                            $typeForCheck = "Vector<{$param['subtype']}>";
+                        }
+                    } else {
+                        $typeForReturn = $param['type'];
+                        $typeForCheck = $param['type'];
+                        if (\is_int($expectFlag)) {
+                            Assert::eq($expectFlag & self::FLAG_UNPACK_ARRAY, 0, "Expected no flag array at position $idx in path ".json_encode($path));
                         }
                     }
+
+                    if (isset($param['pow'])) {
+                        Assert::notNull($expectFlag);
+                        if ($expectFlag instanceof TypedOp) {
+                            Assert::eq($typeForReturn, $expectFlag->getType($tl));
+                        } elseif ($expectFlag === null) {
+                            throw new AssertionError("Got no flag at position $idx in path ".json_encode($path));
+                        } elseif (0 === ($expectFlag & (self::FLAG_IF_ABSENT_ABORT | self::FLAG_PASSTHROUGH))) {
+                            throw new AssertionError("Got no relevant flags at position $idx in path ".json_encode($path));
+                        }
+                    } elseif (($expectFlag & (self::FLAG_IF_ABSENT_ABORT | self::FLAG_PASSTHROUGH)) !== 0) {
+                        throw new AssertionError("Expected no flag at position $idx, got $expectFlag in path ".json_encode($path));
+                    }
+
+                    $typeForReturn = isset($param['subtype']) ? "Vector<{$param['subtype']}>" : $param['type'];
+                    $typeForCheck = $param['subtype'] ?? $param['type'];
+                    $isFlag = isset($param['pow']);
                     break;
                 }
             }
-            Assert::notNull($type, "Parameter {$requiredParam} not found in constructor or method $n");
-            Assert::notNull($realType, "Parameter {$requiredParam} not found in constructor or method $n");
+            Assert::notNull($typeForReturn, "Parameter {$requiredParam} not found in constructor or method $n");
+            Assert::notNull($typeForCheck, "Parameter {$requiredParam} not found in constructor or method $n");
         } while (++$idx < \count($path));
 
-        return $type;
+        return $typeForReturn;
     }
 
 }

@@ -35,7 +35,7 @@ foreach ($TL->getConstructorsOfType('Message') as $constructor => $_) {
     $locations[$constructor][] = new GetMessageOp(
         new ExtractFromHereOp([[$constructor, 'peer_id']]),
         new ExtractFromHereOp([[$constructor, 'id']]),
-        $constructor === 'message' ? new ExtractFromHereOp([[$constructor, 'from_scheduled', true]]) : null,
+        $constructor === 'message' ? new ExtractFromHereOp([[$constructor, 'from_scheduled', ExtractFromParentOp::FLAG_PASSTHROUGH]]) : null,
     );
 }
 
@@ -65,7 +65,7 @@ foreach (['foundStory', 'publicForwardStory', 'webPageAttributeStory', 'messageM
     $locations[$c][] = new CallOp(
         'stories.getStoriesByID',
         [
-            'id' => new ArrayOp(new ExtractFromHereOp([$optional ? [$c, 'story', null] : [$c, 'story'], ['storyItem', 'id']])),
+            'id' => new ArrayOp(new ExtractFromHereOp([$optional ? [$c, 'story', ExtractFromHereOp::FLAG_IF_ABSENT_ABORT] : [$c, 'story'], ['storyItem', 'id']])),
             'peer' => new GetInputPeerOp(new ExtractFromHereOp([[$c, 'peer']])),
         ]
     );
@@ -84,11 +84,11 @@ $locations['botApp'][] = CallOp::simple('messages.getBotApp', 'botApp', [
 ]);
 $locations['botInfo'][] = new CallOp(
     'users.getFullUser',
-    ['id' => new GetInputUserOp(new ExtractFromHereOp([['botInfo', 'user_id', null]]))],
+    ['id' => new GetInputUserOp(new ExtractFromHereOp([['botInfo', 'user_id', ExtractFromHereOp::FLAG_IF_ABSENT_ABORT]]))],
 );
 $locations['storyItem'][] = new CallOp('stories.getStoriesByID', [
     'id' => new ArrayOp(new ExtractFromHereOp([['storyItem', 'id']])),
-    'peer' => new GetInputPeerOp(new ExtractFromHereOp([['storyItem', 'from_id', null]])),
+    'peer' => new GetInputPeerOp(new ExtractFromHereOp([['storyItem', 'from_id', ExtractFromHereOp::FLAG_IF_ABSENT_ABORT]])),
 ]);
 $locations['messages.getSponsoredMessages'][] = new CopyMethodCallOp('messages.getSponsoredMessages');
 $locations['channelAdminLogEvent'][] = new CallOp(
@@ -146,12 +146,12 @@ foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
         'payments.getStarsTransactionsByID',
         [
             'peer' => new ExtractFromParentOp([[$method, 'peer']]),
-            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new ExtractFromParentOp([[$method, 'ton', true]])]),
+            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new ExtractFromParentOp([[$method, 'ton', ExtractFromParentOp::FLAG_PASSTHROUGH]])]),
             'id' => new ArrayOp(new ConstructorOp(
                 'inputStarsTransaction',
                 [
                     'id' => new ExtractFromHereOp([['starsTransaction', 'id']]),
-                    'refund' => new ExtractFromHereOp([['starsTransaction', 'refund', true]]),
+                    'refund' => new ExtractFromHereOp([['starsTransaction', 'refund', ExtractFromParentOp::FLAG_PASSTHROUGH]]),
                 ]
             )),
         ]
@@ -330,7 +330,11 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
             )) {
                 $stack[$pos] = [$predicate, $param['name']];
                 if (isset($param['pow'])) {
-                    $stack[$pos][2] = null;
+                    $stack[$pos][2] = ExtractFromHereOp::FLAG_IF_ABSENT_ABORT;
+                }
+                if (isset($param['subtype'])) {
+                    $oldFlag = $stack[$pos][2] ?? 0;
+                    $stack[$pos][2] = $oldFlag | ExtractFromHereOp::FLAG_UNPACK_ARRAY;
                 }
                 $recurse($onStackEnd, $t, $stack, $stackTypes);
                 unset($stack[$pos]);
@@ -344,7 +348,7 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
         $onStackEnd($stack);
     }
     foreach ($TL->getMethodsOfType("Vector<$type>", true) as $method => $data) {
-        $stack[$pos] = [$method, ''];
+        $stack[$pos] = [$method, '', ExtractFromHereOp::FLAG_UNPACK_ARRAY];
         $onStackEnd($stack);
     }
     unset($stack[$pos]);
