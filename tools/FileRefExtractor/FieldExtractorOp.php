@@ -19,7 +19,7 @@ declare(strict_types=1);
 namespace danog\MadelineProto\FileRefExtractor;
 
 use AssertionError;
-use danog\MadelineProto\FileRefExtractor\Ops\ExtractFromHereOp;
+use danog\MadelineProto\FileRefExtractor\Ops\CopyOp;
 use Webmozart\Assert\Assert;
 
 abstract readonly class FieldExtractorOp implements TypedOp
@@ -84,7 +84,7 @@ abstract readonly class FieldExtractorOp implements TypedOp
     final public function getType(TLContext $tl): string
     {
         $path = $this;
-        if ($path instanceof ExtractFromHereOp) {
+        if ($path instanceof CopyOp) {
             Assert::eq($tl->position, $path->path[0][0], "getTypeAtPosition: Current constructor {$tl->position} does not match expected constructor {$path->path[0][0]}");
         }
         $path = $path->path;

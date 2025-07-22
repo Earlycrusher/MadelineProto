@@ -68,7 +68,7 @@ final readonly class ArrayOp implements TypedOp
             '_' => 'typedOp',
             'type' => $this->getType($tl),
             'op' => [
-                '_' => 'arrayOp',
+                '_' => 'vectorOp',
                 'values' => $arr,
             ],
         ];

@@ -24,8 +24,8 @@ use danog\MadelineProto\FileRefExtractor\TLContext;
 use danog\MadelineProto\Magic;
 use danog\MadelineProto\MTProto;
 use danog\MadelineProto\Settings\TLSchema;
-use danog\MadelineProto\SettingsEmpty;
 use danog\MadelineProto\TL\TL;
+use ReflectionClass;
 use Webmozart\Assert\Assert;
 
 final class Ast implements BuildMode
@@ -45,18 +45,19 @@ final class Ast implements BuildMode
 
         $s = new TLSchema;
         $s = $s->setOther(['filerefs' => __DIR__ . '/../../../src/TL_filerefs.tl']);
-        $TL = new TL(new MTProto(new SettingsEmpty));
+        $TL = new TL((new ReflectionClass(MTProto::class))->newInstanceWithoutConstructor());
         $TL->init($s);
         $serialized = $TL->serializeObject(['type' => 'FileReferenceOrigins'], $value, '');
         $value = $TL->deserialize($serialized, ['type' => '', 'connection' => null, 'encrypted' => true]);
-        return $value;
+        return [$serialized, json_encode($value)];
     }
 
     public function addNode(TLContext $ctx, ?array $action = null, ?string $why = null): void
     {
         $out = [
-            '_' => $ctx->isConstructor ? 'originConstructor' : 'originMethod',
-            $ctx->isConstructor ? 'constructor' : 'method' => $ctx->position,
+            '_' => 'origin',
+            'predicate' => $ctx->position,
+            'is_constructor' => $ctx->isConstructor,
             //'needsParent' => $this->needsParent,
         ];
         if ($action !== null) {

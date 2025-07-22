@@ -43,13 +43,13 @@ final readonly class PrimitiveLiteralOp implements LiteralOp
         return [
             '_' => 'typedOp',
             'type' => $this->getType($tl),
-            '_' =>[
+            'op' => [
                 '_' => match ($this->type) {
-                    'int' => 'literalIntOp',
-                    'long' => 'literalLongOp',
-                    'string' => 'literalStringOp',
-                    'bool' => 'literalBoolOp',
-                    'float' => 'literalFloatOp',
+                    'int' => 'intLiteralOp',
+                    'long' => 'longLiteralOp',
+                    'string' => 'stringLiteralOp',
+                    'bool' => 'boolLiteralOp',
+                    'float' => 'floatLiteralOp',
                 },
                 'value' => $this->value,
             ],

@@ -34,7 +34,7 @@ final readonly class ExtractFromParentOp extends FieldExtractorOp
         $new = [];
         $isDifferent = false;
         foreach ($this->path as $i => $part) {
-            if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & ExtractFromHereOp::FLAG_IF_ABSENT_ABORT)) {
+            if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & CopyOp::FLAG_IF_ABSENT_ABORT)) {
                 return null;
             }
             if (isset($part[2]) && $part[2] instanceof TypedOp) {
@@ -50,7 +50,7 @@ final readonly class ExtractFromParentOp extends FieldExtractorOp
             $new[$i] = $part;
         }
         if ($isDifferent) {
-            return new ExtractFromHereOp($new);
+            return new CopyOp($new);
         }
         return $this;
     }

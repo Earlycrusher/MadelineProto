@@ -59,7 +59,7 @@ final readonly class CallOp implements ActionOp
         $final = [];
         foreach ($args as $from => $to) {
             if (!$to instanceof TypedOp) {
-                $to = new ExtractFromHereOp([[$constructor, $to]]);
+                $to = new CopyOp([[$constructor, $to]]);
             }
             $final[$from] = $to;
         }

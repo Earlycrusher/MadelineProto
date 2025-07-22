@@ -39,15 +39,23 @@ final readonly class CopyMethodCallOp implements ActionOp
     public function build(TLContext $tl): void
     {
         Assert::eq($tl->position, $this->method, "Current constructor {$tl->position} does not match expected method {$this->method}");
-        $tl->tl->tl->getMethods()->findByMethod($this->method)['type']; // Validate type
+        $method = $tl->tl->tl->getMethods()->findByMethod($this->method);
         $out = $tl->buildMode;
         if ($out instanceof Ast) {
-            $out->addNode(
-                $tl,
-                [
-                    '_' => 'copyMethodCall',
-                ]
+            $args = [];
+            foreach ($method['params'] as $arg) {
+                if (isset($arg['pow'])) {
+                    $args[$arg['name']] = new CopyOp([[$this->method, $arg['name'], CopyOp::FLAG_PASSTHROUGH]]);
+                } else {
+                    $args[$arg['name']] = new CopyOp([[$this->method, $arg['name']]]);
+                }
+            }
+            $result = new CallOp(
+                $this->method,
+                $args
             );
+
+            $result->build($tl);
         }
 
     }

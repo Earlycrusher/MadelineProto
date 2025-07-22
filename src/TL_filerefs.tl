@@ -1,0 +1,44 @@
+// Root
+fileReferenceOrigins ctxs:Vector<Origin> = FileReferenceOrigins;
+
+origin flags:# predicate:string is_constructor:flags.0?true action:flags.1?ActionOp noop:flags.2?string = origin;
+
+// For string => TypedOp dictionaries
+typedOpArg key:string value:TypedOp = TypedOpArg;
+
+// Actions
+callOp method:string args:Vector<TypedOpArg> = ActionOp;
+getMessageOp flags:# peer:TypedOp id:TypedOp from_scheduled:flags.0?TypedOp = ActionOp;
+
+// Field extraction path
+pathPart flags:# constructor:string param:string flag_abort_if_empty:flags.0?true flag_fallback_if_empty:flags.1?TypedOp flag_passthrough:flags.2?true unpack_vector:flags.3?true = PathPart;
+
+path parts:Vector<PathPart> = Path;
+
+// Typed constructors, the type is specified to simplify codegen,
+// but isn't strictly necessary as it can be inferred from the TypedOpOp.
+// It is fully pre-validated during the generation of the definition file.
+typedOp type:string op:TypedOpOp = TypedOp;
+
+copyOp path:Path = TypedOpOp;
+
+getInputChannelByIdOp path:Path = TypedOpOp;
+getInputUserByIdOp path:Path = TypedOpOp;
+
+getInputPeerOp path:Path = TypedOpOp;
+getInputUserOp path:Path = TypedOpOp;
+getInputChannelOp path:Path = TypedOpOp;
+
+getStickerSetFromDocumentAttributesOp path:Path = TypedOpOp;
+
+// Literals & constructors (methods not allowed or needed here)
+constructorOp constructor:string args:Vector<TypedOpArg> = TypedOpOp;
+
+vectorOp values:Vector<TypedOp> = TypedOpOp;
+
+intLiteralOp value:int = TypedOpOp;
+longLiteralOp value:long = TypedOpOp;
+stringLiteralOp value:string = TypedOpOp;
+boolLiteralOp value:Bool = TypedOpOp;
+floatLiteralOp value:float = TypedOpOp;
+themeFormatLiteralOp = TypedOpOp;

@@ -23,13 +23,13 @@ use danog\MadelineProto\FileRefExtractor\TLContext;
 use danog\MadelineProto\FileRefExtractor\TypedOp;
 use Webmozart\Assert\Assert;
 
-final readonly class ExtractFromHereOp extends FieldExtractorOp
+final readonly class CopyOp extends FieldExtractorOp
 {
     public function normalize(array $stack, string $current, bool $ignoreFlag): ?\danog\MadelineProto\FileRefExtractor\TypedOp
     {
         $new = [];
         foreach ($this->path as $i => $part) {
-            if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & ExtractFromHereOp::FLAG_IF_ABSENT_ABORT)) {
+            if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & CopyOp::FLAG_IF_ABSENT_ABORT)) {
                 return null;
             }
             if (isset($part[2]) && $part[2] instanceof TypedOp) {
