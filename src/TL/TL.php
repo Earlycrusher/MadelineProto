@@ -772,9 +772,16 @@ final class TL implements TLInterface
                     case '#':
                         $value = 0;
                         break;
+                    case 'strlong':
+                        $value = str_repeat("\0", 8);
+                        break;
                     default:
                         if ($this->API->getSettings()->getSchema()->getFuzzMode()) {
-                            $value = ['_' => $this->constructors->findByType($type)['predicate']];
+                            $value = $this->constructors->findByType($type);
+                            if ($value === false) {
+                                throw new Exception(sprintf(Lang::$current_lang['type_extract_error'], $type));
+                            }
+                            $value = ['_' => $value['predicate']];
                         } else {
                             throw new Exception(Lang::$current_lang['params_missing'].' '.$name);
                         }
