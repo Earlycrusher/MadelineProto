@@ -23,7 +23,7 @@ use danog\MadelineProto\FileRefExtractor\Path;
 use danog\MadelineProto\FileRefExtractor\TLContext;
 use Webmozart\Assert\Assert;
 
-final readonly class GetStickerSetFromDocumentAttributesOp implements FieldTransformationOp
+final readonly class GetInputStickerSet implements FieldTransformationOp
 {
     public function __construct(
         private Path $path,
@@ -49,13 +49,24 @@ final readonly class GetStickerSetFromDocumentAttributesOp implements FieldTrans
 
     public function build(TLContext $tl): array
     {
-        Assert::eq($this->path->getType($tl), 'Vector<DocumentAttribute>');
+        $t = $this->path->getType($tl);
+        if ($t === 'StickerSet') {
+            return [
+                '_' => 'typedOp',
+                'type' => 'InputStickerSet',
+                'op' => [
+                    '_' => 'copyOp',
+                    'path' => $this->path->buildPath($tl, 'extractInputStickerSetFromStickerSetAndStore'),
+                ],
+            ];
+        }
+        Assert::eq($t, 'Vector<DocumentAttribute>');
         return [
             '_' => 'typedOp',
             'type' => $this->getType($tl),
             'op' => [
                 '_' => 'copyOp',
-                'path' => $this->path->buildPath($tl, 'extractStickerSetFromDocumentAttributesAndStore'),
+                'path' => $this->path->buildPath($tl, 'extractInputStickerSetFromDocumentAttributesAndStore'),
             ],
         ];
     }

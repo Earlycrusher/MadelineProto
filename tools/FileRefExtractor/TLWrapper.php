@@ -18,6 +18,7 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\FileRefExtractor;
 
+use danog\MadelineProto\TL\TL;
 use danog\MadelineProto\TL\TLInterface;
 use Webmozart\Assert\Assert;
 
@@ -27,7 +28,7 @@ final class TLWrapper
     private readonly array $methodsOfType;
 
     public function __construct(
-        public readonly TLInterface $tl,
+        public readonly TL $tl,
     ) {
         $constructorsOfType = [];
         $methodsOfType = [];

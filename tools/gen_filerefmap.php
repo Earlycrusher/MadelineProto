@@ -8,6 +8,7 @@ use danog\MadelineProto\FileRefExtractor\Ops\CopyMethodCallOp;
 use danog\MadelineProto\FileRefExtractor\Ops\CopyOp;
 use danog\MadelineProto\FileRefExtractor\Ops\GetInputChannelOp;
 use danog\MadelineProto\FileRefExtractor\Ops\GetInputPeerOp;
+use danog\MadelineProto\FileRefExtractor\Ops\GetInputStickerSet;
 use danog\MadelineProto\FileRefExtractor\Ops\GetInputUserOp;
 use danog\MadelineProto\FileRefExtractor\Ops\GetMessageOp;
 use danog\MadelineProto\FileRefExtractor\Ops\GetStickerSetFromDocumentAttributesOp;
@@ -319,13 +320,7 @@ foreach (['stickerSetMultiCovered', 'stickerSetFullCovered'] as $c) {
     $locations[$c][] = new CallOp(
         'messages.getStickerSet',
         [
-            'stickerset' => new ConstructorOp(
-                'inputStickerSetID',
-                [
-                    'id' => new CopyOp([[$c, 'set'], ['stickerSet', 'id']]),
-                    'access_hash' => new CopyOp([[$c, 'set'], ['stickerSet', 'access_hash']]),
-                ],
-            ),
+            'stickerset' => new GetInputStickerSet(new Path([[$c, 'set']])),
             'hash' => new PrimitiveLiteralOp('int', 0),
         ],
         'fileSourceStickerSet'
@@ -334,13 +329,7 @@ foreach (['stickerSetMultiCovered', 'stickerSetFullCovered'] as $c) {
 $locations['messages.stickerSet'][] = new CallOp(
     'messages.getStickerSet',
     [
-        'stickerset' => new ConstructorOp(
-            'inputStickerSetID',
-            [
-                'id' => new CopyOp([['messages.stickerSet', 'set'], ['stickerSet', 'id']]),
-                'access_hash' => new CopyOp([['messages.stickerSet', 'set'], ['stickerSet', 'access_hash']]),
-            ],
-        ),
+        'stickerset' => new GetInputStickerSet(new Path([['messages.stickerSet', 'set']])),
         'hash' => new PrimitiveLiteralOp('int', 0),
     ],
     'fileSourceStickerSet'
@@ -431,7 +420,7 @@ $locations['messages.uploadImportedMedia'][]= new Noop('A freshly uploaded media
 $locations['document'][] = new CallOp(
     'messages.getStickerSet',
     [
-        'stickerset' => new GetStickerSetFromDocumentAttributesOp(new Path([['document', 'attributes']])),
+        'stickerset' => new GetInputStickerSet(new Path([['document', 'attributes']])),
         'hash' => new PrimitiveLiteralOp('int', 0),
     ],
     'fileSourceStickerSet'

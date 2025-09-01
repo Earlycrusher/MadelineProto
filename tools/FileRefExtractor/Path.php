@@ -124,8 +124,11 @@ final readonly class Path
             $type = $this->getType($tl);
             if ($extractor === 'extractAndStore') {
 
-            } elseif ($extractor === 'extractStickerSetFromDocumentAttributesAndStore') {
+            } elseif ($extractor === 'extractInputStickerSetFromDocumentAttributesAndStore') {
                 Assert::eq($type, 'Vector<DocumentAttribute>');
+                $type = 'InputStickerSet';
+            } elseif ($extractor === 'extractInputStickerSetFromStickerSetAndStore') {
+                Assert::eq($type, 'StickerSet');
                 $type = 'InputStickerSet';
             } elseif ($extractor === 'extractPeerIdFromPeerAndStore') {
                 Assert::eq($type, 'Peer');
