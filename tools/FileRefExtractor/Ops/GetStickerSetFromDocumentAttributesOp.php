@@ -18,15 +18,15 @@ declare(strict_types=1);
 
 namespace danog\MadelineProto\FileRefExtractor\Ops;
 
-use danog\MadelineProto\FileRefExtractor\FieldExtractorOp;
 use danog\MadelineProto\FileRefExtractor\FieldTransformationOp;
+use danog\MadelineProto\FileRefExtractor\Path;
 use danog\MadelineProto\FileRefExtractor\TLContext;
 use Webmozart\Assert\Assert;
 
 final readonly class GetStickerSetFromDocumentAttributesOp implements FieldTransformationOp
 {
     public function __construct(
-        private readonly FieldExtractorOp $path,
+        private Path $path,
     ) {
     }
 
@@ -54,8 +54,8 @@ final readonly class GetStickerSetFromDocumentAttributesOp implements FieldTrans
             '_' => 'typedOp',
             'type' => $this->getType($tl),
             'op' => [
-                '_' => 'getStickerSetFromDocumentAttributesOp',
-                'path' => $this->path->build($tl),
+                '_' => 'copyOp',
+                'path' => $this->path->buildPath($tl, 'extractStickerSetFromDocumentAttributesAndStore'),
             ],
         ];
     }

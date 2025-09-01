@@ -19,6 +19,7 @@ declare(strict_types=1);
 namespace danog\MadelineProto\FileRefExtractor\Ops;
 
 use danog\MadelineProto\FileRefExtractor\ActionOp;
+use danog\MadelineProto\FileRefExtractor\Path;
 use danog\MadelineProto\FileRefExtractor\TLContext;
 use Webmozart\Assert\Assert;
 
@@ -42,7 +43,7 @@ final readonly class CopyMethodCallOp implements ActionOp
         $args = [];
         foreach ($method['params'] as $arg) {
             if (isset($arg['pow'])) {
-                $args[$arg['name']] = new CopyOp([[$this->method, $arg['name'], CopyOp::FLAG_PASSTHROUGH]]);
+                $args[$arg['name']] = new CopyOp([[$this->method, $arg['name'], Path::FLAG_PASSTHROUGH]]);
             } else {
                 $args[$arg['name']] = new CopyOp([[$this->method, $arg['name']]]);
             }
@@ -52,6 +53,7 @@ final readonly class CopyMethodCallOp implements ActionOp
             $args,
             $this->stored_constructor
         );
+        $result = $result->normalize([], $this->method, false);
 
         $result->build($tl);
     }

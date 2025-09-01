@@ -28,6 +28,13 @@ extractAndStore from:Path to:string = FieldExtractor;
 extractStickerSetFromDocumentAttributesAndStore from:Path to:string = FieldExtractor;
 
 extractPeerIdFromPeerAndStore from:Path to:string = FieldExtractor;
+extractPeerIdFromInputPeerAndStore from:Path to:string = FieldExtractor;
+
+extractChannelIdFromChannelAndStore from:Path to:string = FieldExtractor;
+extractChannelIdFromInputChannelAndStore from:Path to:string = FieldExtractor;
+
+extractUserIdFromUserAndStore from:Path to:string = FieldExtractor;
+extractUserIdFromInputUserAndStore from:Path to:string = FieldExtractor;
 
 // Typed constructors, the type is specified to simplify codegen,
 // but isn't strictly necessary as it can be inferred from the TypedOpOp.

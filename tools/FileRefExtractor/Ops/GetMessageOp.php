@@ -19,16 +19,16 @@ declare(strict_types=1);
 namespace danog\MadelineProto\FileRefExtractor\Ops;
 
 use danog\MadelineProto\FileRefExtractor\ActionOp;
-use danog\MadelineProto\FileRefExtractor\FieldExtractorOp;
 use danog\MadelineProto\FileRefExtractor\TLContext;
+use danog\MadelineProto\FileRefExtractor\TypedOp;
 use Webmozart\Assert\Assert;
 
 final readonly class GetMessageOp implements ActionOp
 {
     public function __construct(
-        private readonly FieldExtractorOp $peer,
-        private readonly FieldExtractorOp $id,
-        private readonly ?FieldExtractorOp $fromScheduled,
+        private readonly TypedOp $peer,
+        private readonly TypedOp $id,
+        private readonly ?TypedOp $fromScheduled,
         private readonly string $stored_constructor
     ) {
     }

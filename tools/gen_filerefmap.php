@@ -6,7 +6,6 @@ use danog\MadelineProto\FileRefExtractor\Ops\CallOp;
 use danog\MadelineProto\FileRefExtractor\Ops\ConstructorOp;
 use danog\MadelineProto\FileRefExtractor\Ops\CopyMethodCallOp;
 use danog\MadelineProto\FileRefExtractor\Ops\CopyOp;
-use danog\MadelineProto\FileRefExtractor\Ops\ExtractFromParentOp;
 use danog\MadelineProto\FileRefExtractor\Ops\GetInputChannelOp;
 use danog\MadelineProto\FileRefExtractor\Ops\GetInputPeerOp;
 use danog\MadelineProto\FileRefExtractor\Ops\GetInputUserOp;
@@ -15,6 +14,7 @@ use danog\MadelineProto\FileRefExtractor\Ops\GetStickerSetFromDocumentAttributes
 use danog\MadelineProto\FileRefExtractor\Ops\Noop;
 use danog\MadelineProto\FileRefExtractor\Ops\PrimitiveLiteralOp;
 use danog\MadelineProto\FileRefExtractor\Ops\ThemeFormatOp;
+use danog\MadelineProto\FileRefExtractor\Path;
 use danog\MadelineProto\FileRefExtractor\TLContext;
 use danog\MadelineProto\FileRefExtractor\TLWrapper;
 use danog\MadelineProto\Magic;
@@ -44,7 +44,7 @@ foreach ($TL->getConstructorsOfType('Message') as $constructor => $_) {
     $locations[$constructor][] = new GetMessageOp(
         new CopyOp([[$constructor, 'peer_id']]),
         new CopyOp([[$constructor, 'id']]),
-        $constructor === 'message' ? new CopyOp([[$constructor, 'from_scheduled', CopyOp::FLAG_PASSTHROUGH]]) : null,
+        $constructor === 'message' ? new CopyOp([[$constructor, 'from_scheduled', Path::FLAG_PASSTHROUGH]]) : null,
         'fileSourceMessage',
     );
 }
@@ -58,7 +58,7 @@ foreach (['stories.Stories'] as $t) {
             'stories.getStoriesByID',
             [
                 'id' => new ArrayOp(new CopyOp([['storyItem', 'id']])),
-                'peer' => new GetInputPeerOp(new ExtractFromParentOp([[$method, 'peer']])),
+                'peer' => new GetInputPeerOp(new Path([[$method, 'peer']])),
             ],
             'fileSourceStory'
         );
@@ -73,10 +73,10 @@ foreach (['stories.Stories'] as $t) {
             [
                 'id' => new ArrayOp(new CopyOp([
                     [$method, ''],
-                    ['stories.stories', 'stories', CopyOp::FLAG_UNPACK_ARRAY],
+                    ['stories.stories', 'stories', Path::FLAG_UNPACK_ARRAY],
                     ['storyItem', 'id'],
                 ])),
-                'peer' => new GetInputPeerOp(new CopyOp([[$method, 'peer']])),
+                'peer' => new GetInputPeerOp(new Path([[$method, 'peer']])),
             ]
         );
     }
@@ -86,7 +86,7 @@ $locations['storyViewPublicRepost'][] = new CallOp(
     'stories.getStoriesByID',
     [
         'id' => new ArrayOp(new CopyOp([['storyViewPublicRepost', 'story'], ['storyItem', 'id']])),
-        'peer' => new GetInputPeerOp(new CopyOp([['storyViewPublicRepost', 'peer_id']])),
+        'peer' => new GetInputPeerOp(new Path([['storyViewPublicRepost', 'peer_id']])),
     ],
     'fileSourceStory'
 );
@@ -94,7 +94,7 @@ $locations['storyReactionPublicRepost'][] = new CallOp(
     'stories.getStoriesByID',
     [
         'id' => new ArrayOp(new CopyOp([['storyReactionPublicRepost', 'story'], ['storyItem', 'id']])),
-        'peer' => new GetInputPeerOp(new CopyOp([['storyReactionPublicRepost', 'peer_id']])),
+        'peer' => new GetInputPeerOp(new Path([['storyReactionPublicRepost', 'peer_id']])),
     ],
     'fileSourceStory'
 );
@@ -102,8 +102,8 @@ $locations['storyReactionPublicRepost'][] = new CallOp(
 /*$locations['peerStories'][] = new CallOp(
     'stories.getStoriesByID',
     [
-        'id' => new ArrayOp(new CopyOp([['peerStories', 'stories', CopyOp::FLAG_UNPACK_ARRAY], ['storyItem', 'id']])),
-        'peer' => new GetInputPeerOp(new CopyOp([['peerStories', 'peer']])),
+        'id' => new ArrayOp(new CopyOp([['peerStories', 'stories', Path::FLAG_UNPACK_ARRAY], ['storyItem', 'id']])),
+        'peer' => new GetInputPeerOp(new Path([['peerStories', 'peer']])),
     ]
 );*/
 
@@ -111,7 +111,7 @@ $locations['storyItem'][] = new CallOp(
     'stories.getStoriesByID',
     [
         'id' => new ArrayOp(new CopyOp([['storyItem', 'id']])),
-        'peer' => new GetInputPeerOp(new ExtractFromParentOp([['peerStories', 'peer']])),
+        'peer' => new GetInputPeerOp(new Path([['peerStories', 'peer']])),
     ],
     'fileSourceStory'
 );
@@ -121,8 +121,8 @@ foreach (['foundStory', 'publicForwardStory', 'webPageAttributeStory', 'messageM
     $locations[$c][] = new CallOp(
         'stories.getStoriesByID',
         [
-            'id' => new ArrayOp(new CopyOp([$optional ? [$c, 'story', CopyOp::FLAG_IF_ABSENT_ABORT] : [$c, 'story'], ['storyItem', 'id']])),
-            'peer' => new GetInputPeerOp(new CopyOp([[$c, 'peer']])),
+            'id' => new ArrayOp(new CopyOp([$optional ? [$c, 'story', Path::FLAG_IF_ABSENT_ABORT] : [$c, 'story'], ['storyItem', 'id']])),
+            'peer' => new GetInputPeerOp(new Path([[$c, 'peer']])),
         ],
         'fileSourceStory'
     );
@@ -148,12 +148,12 @@ $locations['botApp'][] = CallOp::simple('messages.getBotApp', 'botApp', [
 
 $locations['botInfo'][] = new CallOp(
     'users.getFullUser',
-    ['id' => new GetInputUserOp(new CopyOp([['botInfo', 'user_id', CopyOp::FLAG_IF_ABSENT_ABORT]]))],
+    ['id' => new GetInputUserOp(new Path([['botInfo', 'user_id', Path::FLAG_IF_ABSENT_ABORT]]))],
     'fileSourceUserFull'
 );
 $locations['storyItem'][] = new CallOp('stories.getStoriesByID', [
     'id' => new ArrayOp(new CopyOp([['storyItem', 'id']])),
-    'peer' => new GetInputPeerOp(new CopyOp([['storyItem', 'from_id', CopyOp::FLAG_IF_ABSENT_ABORT]])),
+    'peer' => new GetInputPeerOp(new Path([['storyItem', 'from_id', Path::FLAG_IF_ABSENT_ABORT]])),
 ], 'fileSourceStory');
 
 $locations['messages.getSponsoredMessages'][] = new CopyMethodCallOp('messages.getSponsoredMessages', 'fileSourceSponsoredMessage');
@@ -162,7 +162,7 @@ $locations['messages.getSponsoredMessages'][] = new CopyMethodCallOp('messages.g
 $locations['channelAdminLogEvent'][] = new CallOp(
     'channels.getAdminLog',
     [
-        'channel' => new GetInputChannelOp(new ExtractFromParentOp([['channels.getAdminLog', 'channel']])),
+        'channel' => new GetInputChannelOp(new Path([['channels.getAdminLog', 'channel']])),
         'max_id' => new CopyOp([['channelAdminLogEvent', 'id']]),
         'min_id' => new CopyOp([['channelAdminLogEvent', 'id']]),
         'limit' => new PrimitiveLiteralOp('int', 1),
@@ -175,15 +175,15 @@ $locations['channelAdminLogEvent'][] = new CallOp(
 $locations['channels.getAdminLog'][] = new CallOp(
     'channels.getAdminLog',
     [
-        'channel' => new GetInputChannelOp(new CopyOp([['channels.getAdminLog', 'channel']])),
+        'channel' => new GetInputChannelOp(new Path([['channels.getAdminLog', 'channel']])),
         'max_id' => new CopyOp([
             ['channels.getAdminLog', ''],
-            ['channels.adminLogResults', 'events', CopyOp::FLAG_UNPACK_ARRAY],
+            ['channels.adminLogResults', 'events', Path::FLAG_UNPACK_ARRAY],
             ['channelAdminLogEvent', 'id'],
         ]),
         'min_id' => new CopyOp([
             ['channels.getAdminLog', ''],
-            ['channels.adminLogResults', 'events', CopyOp::FLAG_UNPACK_ARRAY],
+            ['channels.adminLogResults', 'events', Path::FLAG_UNPACK_ARRAY],
             ['channelAdminLogEvent', 'id'],
         ]),
         'limit' => new PrimitiveLiteralOp('int', 1),
@@ -213,14 +213,14 @@ $locations['updateMessageExtendedMedia'][] = new CallOp(
     'messages.getExtendedMedia',
     [
         'id' => new ArrayOp(new CopyOp([['updateMessageExtendedMedia', 'msg_id']])),
-        'peer' => new GetInputPeerOp(new CopyOp([['updateMessageExtendedMedia', 'peer']])),
+        'peer' => new GetInputPeerOp(new Path([['updateMessageExtendedMedia', 'peer']])),
     ],
     'fileSourcePaidMedia'
 );
 $locations['userFull'][] = new CallOp(
     'users.getFullUser',
     [
-        'id' => new GetInputUserOp(new CopyOp([['userFull', 'id']])),
+        'id' => new GetInputUserOp(new Path([['userFull', 'id']])),
     ],
     'fileSourceUserFull'
 );
@@ -234,7 +234,7 @@ $locations['chatFull'][] = new CallOp(
 $locations['channelFull'][] = new CallOp(
     'channels.getFullChannel',
     [
-        'channel' => new GetInputChannelOp(new CopyOp([['channelFull', 'id']])),
+        'channel' => new GetInputChannelOp(new Path([['channelFull', 'id']])),
     ],
     'fileSourceChannelFull'
 );
@@ -246,13 +246,13 @@ foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
     $locations['starsTransaction'][] = new CallOp(
         'payments.getStarsTransactionsByID',
         [
-            'peer' => new ExtractFromParentOp([[$method, 'peer']]),
-            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new ExtractFromParentOp([[$method, 'ton', CopyOp::FLAG_PASSTHROUGH]])]),
+            'peer' => new CopyOp([[$method, 'peer']]),
+            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new CopyOp([[$method, 'ton', Path::FLAG_PASSTHROUGH]])]),
             'id' => new ArrayOp(new ConstructorOp(
                 'inputStarsTransaction',
                 [
                     'id' => new CopyOp([['starsTransaction', 'id']]),
-                    'refund' => new CopyOp([['starsTransaction', 'refund', CopyOp::FLAG_PASSTHROUGH]]),
+                    'refund' => new CopyOp([['starsTransaction', 'refund', Path::FLAG_PASSTHROUGH]]),
                 ]
             )),
         ],
@@ -262,19 +262,19 @@ foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
         'payments.getStarsTransactionsByID',
         [
             'peer' => new CopyOp([[$method, 'peer']]),
-            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new CopyOp([[$method, 'ton', CopyOp::FLAG_PASSTHROUGH]])]),
+            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new CopyOp([[$method, 'ton', Path::FLAG_PASSTHROUGH]])]),
             'id' => new ArrayOp(new ConstructorOp(
                 'inputStarsTransaction',
                 [
                     'id' => new CopyOp([
                         [$method, ''],
-                        ['payments.starsStatus', 'history', CopyOp::FLAG_IF_ABSENT_ABORT|CopyOp::FLAG_UNPACK_ARRAY],
+                        ['payments.starsStatus', 'history', Path::FLAG_IF_ABSENT_ABORT|Path::FLAG_UNPACK_ARRAY],
                         ['starsTransaction', 'id'],
                     ]),
                     'refund' => new CopyOp([
                         [$method, ''],
-                        ['payments.starsStatus', 'history', CopyOp::FLAG_IF_ABSENT_ABORT|CopyOp::FLAG_UNPACK_ARRAY],
-                        ['starsTransaction', 'refund', CopyOp::FLAG_PASSTHROUGH],
+                        ['payments.starsStatus', 'history', Path::FLAG_IF_ABSENT_ABORT|Path::FLAG_UNPACK_ARRAY],
+                        ['starsTransaction', 'refund', Path::FLAG_PASSTHROUGH],
                     ]),
                 ]
             )),
@@ -283,7 +283,7 @@ foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
 }
 $locations['attachMenuBot'][] = new CallOp(
     'messages.getAttachMenuBot',
-    ['bot' => new GetInputUserOp(new CopyOp([['attachMenuBot', 'bot_id']]))],
+    ['bot' => new GetInputUserOp(new Path([['attachMenuBot', 'bot_id']]))],
     'fileSourceAttachMenuBot'
 );
 $locations['theme'][] = new CallOp(
@@ -367,7 +367,7 @@ $locations['messages.availableReactions'][] = new CallOp(
 $locations['photo'][] = new CallOp(
     'photos.getUserPhotos',
     [
-        'user_id' => new ExtractFromParentOp([['photos.getUserPhotos', 'user_id']]),
+        'user_id' => new CopyOp([['photos.getUserPhotos', 'user_id']]),
         'offset' => new PrimitiveLiteralOp('int', -1),
         'max_id' => new CopyOp([['photo', 'id']]),
         'limit' => new PrimitiveLiteralOp('int', 1),
@@ -382,7 +382,7 @@ $locations['photos.getUserPhotos'][] = new CallOp(
         'offset' => new PrimitiveLiteralOp('int', -1),
         'max_id' => new CopyOp([
             ['photos.getUserPhotos', ''],
-            ['photos.photos', 'photos', CopyOp::FLAG_UNPACK_ARRAY],
+            ['photos.photos', 'photos', Path::FLAG_UNPACK_ARRAY],
             ['photo', 'id'],
         ]),
         'limit' => new PrimitiveLiteralOp('int', 1),
@@ -431,7 +431,7 @@ $locations['messages.uploadImportedMedia'][]= new Noop('A freshly uploaded media
 $locations['document'][] = new CallOp(
     'messages.getStickerSet',
     [
-        'stickerset' => new GetStickerSetFromDocumentAttributesOp(new CopyOp([['document', 'attributes']])),
+        'stickerset' => new GetStickerSetFromDocumentAttributesOp(new Path([['document', 'attributes']])),
         'hash' => new PrimitiveLiteralOp('int', 0),
     ],
     'fileSourceStickerSet'
@@ -480,11 +480,11 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
             )) {
                 $stack[$pos] = [$predicate, $param['name']];
                 if (isset($param['pow'])) {
-                    $stack[$pos][2] = CopyOp::FLAG_IF_ABSENT_ABORT;
+                    $stack[$pos][2] = Path::FLAG_IF_ABSENT_ABORT;
                 }
                 if (isset($param['subtype'])) {
                     $oldFlag = $stack[$pos][2] ?? 0;
-                    $stack[$pos][2] = $oldFlag | CopyOp::FLAG_UNPACK_ARRAY;
+                    $stack[$pos][2] = $oldFlag | Path::FLAG_UNPACK_ARRAY;
                 }
                 $recurse($onStackEnd, $t, $stack, $stackTypes);
                 unset($stack[$pos]);
@@ -498,7 +498,7 @@ $recurse = static function (Closure $onStackEnd, string $type, array &$stack, ar
         $onStackEnd($stack);
     }
     foreach ($TL->getMethodsOfType("Vector<$type>", true) as $method => $data) {
-        $stack[$pos] = [$method, '', CopyOp::FLAG_UNPACK_ARRAY];
+        $stack[$pos] = [$method, '', Path::FLAG_UNPACK_ARRAY];
         $onStackEnd($stack);
     }
     unset($stack[$pos]);

@@ -21,10 +21,9 @@ namespace danog\MadelineProto\FileRefExtractor;
 use AssertionError;
 use danog\MadelineProto\FileRefExtractor\BuildMode\Ast;
 use danog\MadelineProto\FileRefExtractor\Ops\CopyOp;
-use danog\MadelineProto\FileRefExtractor\Ops\ExtractFromParentOp;
 use Webmozart\Assert\Assert;
 
-abstract readonly class FieldExtractorOp implements TypedOp
+final readonly class Path
 {
     final public const FLAG_UNPACK_ARRAY = 1;
     final public const FLAG_IF_ABSENT_ABORT = 2;
@@ -32,6 +31,7 @@ abstract readonly class FieldExtractorOp implements TypedOp
     public function __construct(
         /** @var list<list{0: string, 1: string, 2?: int-mask-of<self::FLAG_*>|TypedOp}> */
         public array $path,
+        public ?bool $isFromParent = null,
     ) {
         foreach ($path as $k => $elem) {
             if (\count($elem) !== 2 && \count($elem) !== 3) {
@@ -55,11 +55,12 @@ abstract readonly class FieldExtractorOp implements TypedOp
         }
     }
 
-    public function normalize(array $stack, string $current, bool $ignoreFlag): ?\danog\MadelineProto\FileRefExtractor\TypedOp
+    public function normalize(array $stack, string $current, bool $ignoreFlag): ?self
     {
+        Assert::null($this->isFromParent, 'Already normalized');
         $new = [];
         foreach ($this->path as $i => $part) {
-            if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & CopyOp::FLAG_IF_ABSENT_ABORT)) {
+            if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & self::FLAG_IF_ABSENT_ABORT)) {
                 return null;
             }
             if (isset($part[2]) && $part[2] instanceof TypedOp) {
@@ -71,13 +72,20 @@ abstract readonly class FieldExtractorOp implements TypedOp
             }
             $new[$i] = $part;
         }
-        Assert::eq($current, $this->path[0][0]);
-        return new self(
-            [...$stack, ...$new],
-        );
+        if ($current === $this->path[0][0]) {
+            return new self(
+                [...$stack, ...$new],
+                false,
+            );
+        }
+        // From parent
+        if ($stack[0][0] === $this->path[0][0]) {
+            return new static($new, true);
+        }
+        return null;
     }
 
-    final protected function buildPath(TLContext $tl): array
+    public function buildPath(TLContext $tl, string $extractor): array
     {
         $new = [];
         foreach ($this->path as $k => $part) {
@@ -108,12 +116,38 @@ abstract readonly class FieldExtractorOp implements TypedOp
             }
             $new[] = $newPart;
         }
-        $serialized = json_encode($new);
+        $serialized = $extractor.json_encode($new);
         if (isset($tl->buildMode->stored[$serialized])) {
             $name = $tl->buildMode->stored[$serialized]['name'];
         } else {
             $isFlag = $newPart['flag']['_'] === 'paramIsFlagPassthrough';
             $type = $this->getType($tl);
+            if ($extractor === 'extractAndStore') {
+
+            } elseif ($extractor === 'extractStickerSetFromDocumentAttributesAndStore') {
+                Assert::eq($type, 'Vector<DocumentAttribute>');
+                $type = 'InputStickerSet';
+            } elseif ($extractor === 'extractPeerIdFromPeerAndStore') {
+                Assert::eq($type, 'Peer');
+                $type = 'long';
+            } elseif ($extractor === 'extractPeerIdFromInputPeerAndStore') {
+                Assert::eq($type, 'InputPeer');
+                $type = 'long';
+            } elseif ($extractor === 'extractChannelIdFromChannelAndStore') {
+                Assert::eq($type, 'Channel');
+                $type = 'long';
+            } elseif ($extractor === 'extractChannelIdFromInputChannelAndStore') {
+                Assert::eq($type, 'InputChannel');
+                $type = 'long';
+            } elseif ($extractor === 'extractUserIdFromUserAndStore') {
+                Assert::eq($type, 'Channel');
+                $type = 'long';
+            } elseif ($extractor === 'extractUserIdFromInputUserAndStore') {
+                Assert::eq($type, 'InputUser');
+                $type = 'long';
+            } else {
+                throw new \InvalidArgumentException('Unknown extractor ' . $extractor);
+            }
             if ($isFlag) {
                 $flag = $tl->buildMode->storedFlags++;
                 $type = "flags.$flag?$type";
@@ -129,15 +163,22 @@ abstract readonly class FieldExtractorOp implements TypedOp
                 'type' => $type,
             ];
         }
-        return ['_' => $this instanceof ExtractFromParentOp ? 'pathParent': 'path', 'parts' => $new];
-    }
-    final public function getType(TLContext $tl): string
-    {
-        $path = $this;
-        if ($path instanceof CopyOp) {
-            Assert::eq($tl->position, $path->path[0][0], "getTypeAtPosition: Current constructor {$tl->position} does not match expected constructor {$path->path[0][0]}");
+        Assert::notNull($this->isFromParent, 'Not normalized');
+        if ($this->isFromParent) {
+            $tl->buildMode->setNeedsParent($this->path[0][0]);
         }
-        $path = $path->path;
+        return [
+            '_' => $extractor,
+            'from' => ['_' => $this->isFromParent ? 'pathParent': 'path', 'parts' => $new],
+            'to' => $name,
+        ];
+    }
+    public function getType(TLContext $tl): string
+    {
+        if ($this instanceof CopyOp) {
+            Assert::eq($tl->position, $this->path[0][0], "getTypeAtPosition: Current constructor {$tl->position} does not match expected constructor {$this->path[0][0]}");
+        }
+        $path = $this->path;
         $idx = 0;
         $typeForReturn = null;
         $typeForCheck = null;

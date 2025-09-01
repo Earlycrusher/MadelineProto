@@ -20,7 +20,6 @@ namespace danog\MadelineProto\FileRefExtractor\BuildMode;
 
 use AssertionError;
 use danog\MadelineProto\FileRefExtractor\BuildMode;
-use danog\MadelineProto\FileRefExtractor\ExtractorType;
 use danog\MadelineProto\FileRefExtractor\TLContext;
 use danog\MadelineProto\Magic;
 use danog\MadelineProto\MTProto;
