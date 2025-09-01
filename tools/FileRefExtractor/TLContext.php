@@ -33,6 +33,15 @@ final readonly class TLContext
     ) {
     }
 
+    public function build(TypedOp $op, string $key): array
+    {
+        $prev = $this->buildMode->curKey;
+        $this->buildMode->curKey = $key;
+        $v = $op->build($this);
+        $this->buildMode->curKey = $prev;
+        return $v;
+    }
+
     /**
      * @param Op[] $params
      */

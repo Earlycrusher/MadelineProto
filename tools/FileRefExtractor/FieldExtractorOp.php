@@ -96,9 +96,10 @@ abstract readonly class FieldExtractorOp implements TypedOp
                 $flag = $tl->buildMode->storedFlags++;
                 $type = "flags.$flag?$type";
             }
-            $name = $newPart['param'];
+            $name = $tl->buildMode->curKey;
+            Assert::notNull($name);
             if (isset($tl->buildMode->storedNames[$name])) {
-                throw new AssertionError("Need custom name for ".json_encode($this->path));
+                throw new AssertionError("Need custom name (already have $name) for ".json_encode($this->path));
             }
             $tl->buildMode->storedNames[$name] = true;
             $tl->buildMode->stored[$serialized] = [

@@ -36,6 +36,8 @@ final class Ast implements BuildMode
     public array $storedNames = [];
     public int $storedFlags = 0;
 
+    public ?string $curKey = null;
+
     private array $output = [];
     private array $outputSchema = [];
     private ?string $needsParent = null;
@@ -75,7 +77,6 @@ final class Ast implements BuildMode
             $out['action'] = $action;
 
             Assert::keyExists($action, 'stored_constructor');
-            Assert::notEmpty($this->stored, 'No stored fields collected for action with stored_constructor ' . $action['stored_constructor']);
 
             $constructor = $action['stored_constructor'];
 
@@ -109,6 +110,7 @@ final class Ast implements BuildMode
         }
         $this->output[] = $out;
         $this->needsParent = null;
+        $this->curKey = null;
     }
 
     public function getNeedsParent(): ?string

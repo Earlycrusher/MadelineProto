@@ -65,13 +65,13 @@ final readonly class GetMessageOp implements ActionOp
         }
         $extra = [];
         if ($this->fromScheduled !== null) {
-            $extra['from_scheduled'] = $this->fromScheduled->build($tl);
+            $extra['from_scheduled'] = $tl->build($this->fromScheduled, 'from_scheduled');
         }
         $tl->buildMode->addNode($tl, [
             '_' => 'getMessageOp',
             'stored_constructor' => $this->stored_constructor,
-            'peer' => $this->peer->build($tl),
-            'id' => $this->id->build($tl),
+            'peer' => $tl->build($this->peer, 'peer'),
+            'id' => $tl->build($this->id, 'id'),
             ...$extra,
         ]);
     }
