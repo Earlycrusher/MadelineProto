@@ -55,6 +55,28 @@ abstract readonly class FieldExtractorOp implements TypedOp
         }
     }
 
+    public function normalize(array $stack, string $current, bool $ignoreFlag): ?\danog\MadelineProto\FileRefExtractor\TypedOp
+    {
+        $new = [];
+        foreach ($this->path as $i => $part) {
+            if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & CopyOp::FLAG_IF_ABSENT_ABORT)) {
+                return null;
+            }
+            if (isset($part[2]) && $part[2] instanceof TypedOp) {
+                $n = $part[2]->normalize($stack, $current, $ignoreFlag);
+                if ($n === null) {
+                    return null;
+                }
+                $part[2] = $n;
+            }
+            $new[$i] = $part;
+        }
+        Assert::eq($current, $this->path[0][0]);
+        return new self(
+            [...$stack, ...$new],
+        );
+    }
+
     final protected function buildPath(TLContext $tl): array
     {
         $new = [];
@@ -107,11 +129,7 @@ abstract readonly class FieldExtractorOp implements TypedOp
                 'type' => $type,
             ];
         }
-        return [
-            '_' => 'path',
-            'extracted' => ['_' => $this instanceof ExtractFromParentOp ? 'pathExtractorParent': 'pathExtractor', 'parts' => $new],
-            'stored_param' => $name,
-        ];
+        return ['_' => $this instanceof ExtractFromParentOp ? 'pathParent': 'path', 'parts' => $new];
     }
     final public function getType(TLContext $tl): string
     {

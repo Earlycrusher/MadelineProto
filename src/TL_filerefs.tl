@@ -19,29 +19,27 @@ paramIsFlagPassthrough = ParamFlag;
 
 pathPart flags:# constructor:string param:string flag:ParamFlag = PathPart;
 
-pathExtractor parts:Vector<PathPart> = PathExtractor;
-pathExtractorParent parts:Vector<PathPart> = PathExtractor;
+path parts:Vector<PathPart> = Path;
+pathParent parts:Vector<PathPart> = Path;
 
-path extracted:PathExtractor stored_param:string = Path;
+// Extractor+storer
+extractAndStore from:Path to:string = FieldExtractor;
+
+extractStickerSetFromDocumentAttributesAndStore from:Path to:string = FieldExtractor;
+
+extractPeerIdFromPeerAndStore from:Path to:string = FieldExtractor;
 
 // Typed constructors, the type is specified to simplify codegen,
 // but isn't strictly necessary as it can be inferred from the TypedOpOp.
 // It is fully pre-validated during the generation of the definition file.
 typedOp type:string op:TypedOpOp = TypedOp;
 
+// The actual ops
+copyOp from:FieldExtractor = TypedOpOp;
 
-// The actual value
-copyOp path:Path = TypedOpOp;
-copyFromParentOp path:Path = TypedOpOp;
-
-getInputChannelByIdOp path:Path = TypedOpOp;
-getInputUserByIdOp path:Path = TypedOpOp;
-
-getInputPeerOp path:Path = TypedOpOp;
-getInputUserOp path:Path = TypedOpOp;
-getInputChannelOp path:Path = TypedOpOp;
-
-getStickerSetFromDocumentAttributesOp path:Path = TypedOpOp;
+getInputChannelByIdOp from:FieldExtractor = TypedOpOp;
+getInputUserByIdOp from:FieldExtractor = TypedOpOp;
+getInputPeerByIdOp from:FieldExtractor = TypedOpOp;
 
 // Literals & constructors (methods not allowed or needed here)
 constructorOp constructor:string args:Vector<TypedOpArg> = TypedOpOp;

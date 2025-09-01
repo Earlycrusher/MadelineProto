@@ -24,13 +24,10 @@ use danog\MadelineProto\FileRefExtractor\TypedOp;
 
 final readonly class ExtractFromParentOp extends FieldExtractorOp
 {
+
     public function normalize(array $stack, string $current, bool $ignoreFlag): ?\danog\MadelineProto\FileRefExtractor\TypedOp
     {
-        if ($stack[0][0] !== $this->path[0][0]) {
-            return null;
-        }
         $new = [];
-        $isDifferent = false;
         foreach ($this->path as $i => $part) {
             if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & CopyOp::FLAG_IF_ABSENT_ABORT)) {
                 return null;
@@ -40,18 +37,16 @@ final readonly class ExtractFromParentOp extends FieldExtractorOp
                 if ($n === null) {
                     return null;
                 }
-                if ($n !== $part[2]) {
-                    $isDifferent = true;
-                    $part[2] = $n;
-                }
+                $part[2] = $n;
             }
             $new[$i] = $part;
         }
-        if ($isDifferent) {
-            return new CopyOp($new);
-        }
-        return $this;
+        Assert::eq($current, $this->path[0][0]);
+        return new self(
+            [...$stack, ...$new],
+        );
     }
+
 
     public function build(TLContext $tl): array
     {
@@ -60,7 +55,7 @@ final readonly class ExtractFromParentOp extends FieldExtractorOp
             '_' => 'typedOp',
             'type' => $this->getType($tl),
             'op' => [
-                '_' => 'copyFromParentOp',
+                '_' => 'copyOp',
                 'path' => $this->buildPath($tl),
             ],
         ];
