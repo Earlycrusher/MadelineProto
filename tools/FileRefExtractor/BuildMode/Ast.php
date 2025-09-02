@@ -59,10 +59,13 @@ final class Ast implements BuildMode
     {
         $schema = explode("\n", file_get_contents($schemaFile));
         foreach ($schema as &$line) {
-            $line = trim($line);
+            $line = rtrim(trim($line), ';');
             if (str_starts_with($line, '//') || !$line) {
                 continue;
             }
+            $line = explode(" ", $line, 2);
+            $line[0] = preg_replace('/#.*/', '', $line[0]);
+            $line = implode(" ", $line);
             $id = self::crc($line);
 
             $line = explode(" ", $line, 2);
