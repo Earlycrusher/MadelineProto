@@ -57,3 +57,19 @@ copy(
     __DIR__."/../src/file_ref_map.json",
     __DIR__."/../schemas/TL_telegram_v{$last}_file_ref_map.json"
 );
+
+$res = [];
+foreach (glob(getcwd().'/schemas/TL_telegram_*_file_ref_map.json') as $file) {
+    preg_match("/telegram_v(\d+)/", $file, $matches);
+    $res[$matches[1]] = $file;
+}
+ksort($res);
+file_put_contents(getcwd().'/schemas/list_file_ref_map.json', json_encode(array_keys($res)));
+
+$start = array_key_first($res);
+foreach ($res as $layer => $_) {
+    if ($layer !== $start) {
+        throw new AssertionError("Missing fileref file for layer $layer");
+    }
+    $start++;
+}
