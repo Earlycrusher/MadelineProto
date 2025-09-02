@@ -7,8 +7,8 @@ origin#72cc7c04 flags:# predicate:string is_constructor:flags.0?true action:Acti
 typedOpArg#3a2930c2 key:string value:TypedOp = TypedOpArg;
 
 // Actions
-callOp#59aef5ce method:string args:Vector<TypedOpArg> stored_constructor:string = ActionOp;
-getMessageOp#4f27329e flags:# peer:TypedOp id:TypedOp from_scheduled:flags.0?TypedOp stored_constructor:string = ActionOp;
+callOp#95a107ea method:string args:Vector<TypedOpArg> stored_constructor:string skipped_flags:Vector<string> = ActionOp;
+getMessageOp#defc2466 flags:# peer:TypedOp id:TypedOp from_scheduled:flags.0?TypedOp stored_constructor:string skipped_flags:Vector<string> = ActionOp;
 noOp#c4d8df73 why:string = ActionOp;
 
 // Field extraction path

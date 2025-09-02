@@ -128,11 +128,10 @@ final class Ast implements BuildMode
             $out['parent_is_constructor'] = $ctx->tl->isConstructor($this->needsParent);
         }
         if ($action !== null) {
-            $out['action'] = $action;
-
             Assert::keyExists($action, 'stored_constructor');
 
             $constructor = $action['stored_constructor'];
+            $action['skipped_flags'] = [];
 
             $names = $this->storedNames;
             $flags = [];
@@ -154,6 +153,8 @@ final class Ast implements BuildMode
                     if (str_starts_with($type, 'flags.')) {
                         if (isset($flags[$name])) {
                             unset($flags[$name], $names[$name]);
+                        } else {
+                            $action['skipped_flags'][]= $name;
                         }
                     }
                 }
@@ -177,6 +178,8 @@ final class Ast implements BuildMode
             } else {
                 $this->outputSchema[$constructor] = $names;
             }
+
+            $out['action'] = $action;
 
             $this->storedFlags = 0;
             $this->stored = [];
