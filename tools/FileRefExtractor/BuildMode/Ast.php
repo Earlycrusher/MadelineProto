@@ -42,7 +42,6 @@ final class Ast implements BuildMode
     private ?string $needsParent = null;
 
     public function __construct(
-        public readonly bool $allowBackrefs,
         public readonly bool $allowUnpacking,
         private array $outputSchema = []
     ) {
@@ -159,9 +158,6 @@ final class Ast implements BuildMode
 
     public function setNeedsParent(string $needsParent): void
     {
-        if (!$this->allowBackrefs) {
-            throw new \LogicException('Cannot set needsParent when backreferences are not allowed.');
-        }
         if ($this->needsParent !== null && $this->needsParent !== $needsParent) {
             throw new \LogicException("Cannot change needsParent from {$this->needsParent} to {$needsParent} once it has been set.");
         }

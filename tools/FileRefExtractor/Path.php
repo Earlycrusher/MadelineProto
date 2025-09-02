@@ -31,7 +31,7 @@ final readonly class Path
     public function __construct(
         /** @var list<list{0: string, 1: string, 2?: int-mask-of<self::FLAG_*>|TypedOp}> */
         public array $path,
-        public ?bool $isFromParent = null,
+        public bool $isFromParent = false,
     ) {
         foreach ($path as $k => $elem) {
             if (\count($elem) !== 2 && \count($elem) !== 3) {
@@ -57,7 +57,6 @@ final readonly class Path
 
     public function normalize(array $stack, string $current, bool $ignoreFlag): ?self
     {
-        Assert::null($this->isFromParent, 'Already normalized');
         $new = [];
         foreach ($this->path as $i => $part) {
             if ($ignoreFlag && \array_key_exists(2, $part) && \is_int($part[2]) && ($part[2] & self::FLAG_IF_ABSENT_ABORT)) {
@@ -72,17 +71,18 @@ final readonly class Path
             }
             $new[$i] = $part;
         }
-        if ($current === $this->path[0][0]) {
-            return new self(
-                [...$stack, ...$new],
-                false,
-            );
+        if ($this->isFromParent) {
+            // From parent
+            if ($stack[0][0] === $this->path[0][0]) {
+                return new static($new, true);
+            }
+            return null;
         }
-        // From parent
-        if ($stack[0][0] === $this->path[0][0]) {
-            return new static($new, true);
-        }
-        return null;
+        Assert::eq($this->path[0][0], $current);
+        return new self(
+            [...$stack, ...$new],
+            false,
+        );
     }
 
     public function buildPath(TLContext $tl, string $extractor): array
@@ -166,7 +166,6 @@ final readonly class Path
                 'type' => $type,
             ];
         }
-        Assert::notNull($this->isFromParent, 'Not normalized');
         if ($this->isFromParent) {
             $tl->buildMode->setNeedsParent($this->path[0][0]);
         }

@@ -11,7 +11,6 @@ use danog\MadelineProto\FileRefExtractor\Ops\GetInputPeerOp;
 use danog\MadelineProto\FileRefExtractor\Ops\GetInputStickerSet;
 use danog\MadelineProto\FileRefExtractor\Ops\GetInputUserOp;
 use danog\MadelineProto\FileRefExtractor\Ops\GetMessageOp;
-use danog\MadelineProto\FileRefExtractor\Ops\GetStickerSetFromDocumentAttributesOp;
 use danog\MadelineProto\FileRefExtractor\Ops\Noop;
 use danog\MadelineProto\FileRefExtractor\Ops\PrimitiveLiteralOp;
 use danog\MadelineProto\FileRefExtractor\Ops\ThemeFormatOp;
@@ -59,7 +58,7 @@ foreach (['stories.Stories'] as $t) {
             'stories.getStoriesByID',
             [
                 'id' => new ArrayOp(new CopyOp([['storyItem', 'id']])),
-                'peer' => new GetInputPeerOp(new Path([[$method, 'peer']])),
+                'peer' => new GetInputPeerOp(new Path([[$method, 'peer']], true)),
             ],
             'fileSourceStory'
         );
@@ -112,7 +111,7 @@ $locations['storyItem'][] = new CallOp(
     'stories.getStoriesByID',
     [
         'id' => new ArrayOp(new CopyOp([['storyItem', 'id']])),
-        'peer' => new GetInputPeerOp(new Path([['peerStories', 'peer']])),
+        'peer' => new GetInputPeerOp(new Path([['peerStories', 'peer']], true)),
     ],
     'fileSourceStory'
 );
@@ -163,7 +162,7 @@ $locations['messages.getSponsoredMessages'][] = new CopyMethodCallOp('messages.g
 $locations['channelAdminLogEvent'][] = new CallOp(
     'channels.getAdminLog',
     [
-        'channel' => new GetInputChannelOp(new Path([['channels.getAdminLog', 'channel']])),
+        'channel' => new GetInputChannelOp(new Path([['channels.getAdminLog', 'channel']], true)),
         'max_id' => new CopyOp([['channelAdminLogEvent', 'id']]),
         'min_id' => new CopyOp([['channelAdminLogEvent', 'id']]),
         'limit' => new PrimitiveLiteralOp('int', 1),
@@ -248,7 +247,7 @@ foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
         'payments.getStarsTransactionsByID',
         [
             'peer' => new CopyOp([[$method, 'peer']]),
-            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new CopyOp([[$method, 'ton', Path::FLAG_PASSTHROUGH]])]),
+            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new CopyOp(new Path([[$method, 'ton', Path::FLAG_PASSTHROUGH]], true))]),
             'id' => new ArrayOp(new ConstructorOp(
                 'inputStarsTransaction',
                 [
@@ -356,7 +355,7 @@ $locations['messages.availableReactions'][] = new CallOp(
 $locations['photo'][] = new CallOp(
     'photos.getUserPhotos',
     [
-        'user_id' => new CopyOp([['photos.getUserPhotos', 'user_id']]),
+        'user_id' => new CopyOp(new Path([['photos.getUserPhotos', 'user_id']], true)),
         'offset' => new PrimitiveLiteralOp('int', -1),
         'max_id' => new CopyOp([['photo', 'id']]),
         'limit' => new PrimitiveLiteralOp('int', 1),
@@ -512,7 +511,7 @@ $pre = [
 
 $validated = [];
 
-$tmp = new Ast(allowBackrefs: true, allowUnpacking: true, outputSchema: $pre);
+$tmp = new Ast(allowUnpacking: true, outputSchema: $pre);
 foreach (['Document' => 'document', 'Photo' => 'photo'] as $type => $constructor) {
     $stack = [[$constructor, 'file_reference']];
     $stackTypes = [$type => 1];
@@ -600,7 +599,7 @@ if ($diff) {
     throw new AssertionError("Leftover ops!");
 }
 
-$output = new Ast(allowBackrefs: true, allowUnpacking: false, outputSchema: $pre);
+$output = new Ast(allowUnpacking: false, outputSchema: $pre);
 foreach ($locations as $constructor => $ops) {
     foreach ($ops as $idx => $op) {
         $op->build(new TLContext($TL, $output, $constructor, $TL->isConstructor($constructor)));
