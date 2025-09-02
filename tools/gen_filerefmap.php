@@ -17,6 +17,7 @@ use danog\MadelineProto\FileRefExtractor\Ops\ThemeFormatOp;
 use danog\MadelineProto\FileRefExtractor\Path;
 use danog\MadelineProto\FileRefExtractor\TLContext;
 use danog\MadelineProto\FileRefExtractor\TLWrapper;
+use danog\MadelineProto\Logger;
 use danog\MadelineProto\Magic;
 use danog\MadelineProto\Settings\TLSchema;
 use danog\MadelineProto\TL\TL;
@@ -36,6 +37,8 @@ $TL->init($schema);
 
 $TL = new TLWrapper($TL);
 $locations = [];
+
+Logger::log("Generating file reference map...");
 
 foreach ($TL->getConstructorsOfType('Message') as $constructor => $_) {
     if ($constructor === 'messageEmpty') {
@@ -246,7 +249,7 @@ foreach ($TL->getMethodsOfType('payments.StarsStatus') as $method => $_) {
     $locations['starsTransaction'][] = new CallOp(
         'payments.getStarsTransactionsByID',
         [
-            'peer' => new CopyOp([[$method, 'peer']]),
+            'peer' => new CopyOp(new Path([[$method, 'peer']], true)),
             ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new CopyOp(new Path([[$method, 'ton', Path::FLAG_PASSTHROUGH]], true))]),
             'id' => new ArrayOp(new ConstructorOp(
                 'inputStarsTransaction',
