@@ -67,8 +67,8 @@ final class Ast implements BuildMode
             $locations[] = [
                 '_' => 'locationOutgoing',
                 'predicate' => $predicate,
-                'id_field' => $id,
-                'file_reference_field' => $fileref,
+                //'id_field' => $id,
+                //'file_reference_field' => $fileref,
                 'stored_constructor' => $cons,
             ];
         }
@@ -77,8 +77,8 @@ final class Ast implements BuildMode
             $locations[] = [
                 '_' => 'locationIncoming',
                 'predicate' => $predicate,
-                'id_field' => $id,
-                'file_reference_field' => $fileref,
+                //'id_field' => $id,
+                //'file_reference_field' => $fileref,
                 'stored_constructor' => $cons,
             ];
         }
