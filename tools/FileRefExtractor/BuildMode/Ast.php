@@ -62,20 +62,21 @@ final class Ast implements BuildMode
         $locations = [];
 
         $fileIdCons = [];
-        foreach ($outgoingCons as [$cons, $id, $fileref]) {
+        foreach ($outgoingCons as $predicate => [$cons, $id, $fileref]) {
             $fileIdCons[$cons] = true;
             $locations[] = [
                 '_' => 'locationOutgoing',
-                'predicate' => $cons,
+                'predicate' => $predicate,
                 'id_field' => $id,
                 'file_reference_field' => $fileref,
+                'stored_constructor' => $cons,
             ];
         }
-        foreach ($incomingCons as [$cons]) {
+        foreach ($incomingCons as $predicate => [$cons]) {
             $fileIdCons[$cons] = true;
             $locations[] = [
                 '_' => 'locationIncoming',
-                'predicate' => $cons,
+                'predicate' => $predicate,
                 'id_field' => $id,
                 'file_reference_field' => $fileref,
                 'stored_constructor' => $cons,
@@ -83,12 +84,12 @@ final class Ast implements BuildMode
         }
         $dbSchema = '';
         foreach ($fileIdCons as $cons => $_) {
-            $dbSchema .= "$cons id:long = FileId;\n";
+            $dbSchema .= self::stringifySchema($cons, ['id' => 'long'], "FileId")."\n";
         }
         $dbSchema .= "\n";
 
         foreach ($this->outputSchema as $constructor => $params) {
-            $dbSchema .= self::stringifySchema($constructor, $params)."\n";
+            $dbSchema .= self::stringifySchema($constructor, $params, "FileSource")."\n";
         }
         $dbSchemaJSON = (new TL(null))->toJson($dbSchema);
 
@@ -121,7 +122,7 @@ final class Ast implements BuildMode
         file_put_contents($refMapFileJson, json_encode($valueDe, flags: JSON_THROW_ON_ERROR));
     }
 
-    private static function stringifySchema(string $constructor, array $params): string
+    private static function stringifySchema(string $constructor, array $params, string $cType): string
     {
         $paramsStr = "$constructor ";
         foreach ($params as $name => $type) {
@@ -136,7 +137,7 @@ final class Ast implements BuildMode
             }
             $paramsStr .= "$name:$type ";
         }
-        $paramsStr .= '= FileSource;';
+        $paramsStr .= "= $cType;";
 
         $id = self::crc($paramsStr);
         $paramsStr = substr($paramsStr, \strlen($constructor)+1);
@@ -191,7 +192,7 @@ final class Ast implements BuildMode
                     }
                 }
                 foreach ($stored as $name => ['type' => $type]) {
-                    throw new AssertionError("Leftover parameter $constructor.$name:$type for ".self::stringifySchema($constructor, $existing));
+                    throw new AssertionError("Leftover parameter $constructor.$name:$type for ".self::stringifySchema($constructor, $existing, 'FileSource'));
                 }
             } else {
                 $types = [];

@@ -5,7 +5,7 @@ boolTrue#997275b5 = Bool;
 fileReferenceOrigins#ed01a4f1 db_schema:string db_schema_json:string locations:Vector<Location> origins:Vector<Origin> skipped:Vector<SkippedOrigin> actions:Vector<Action> = FileReferenceOrigins;
 
 locationIncoming#63eb15be predicate:string id_field:string file_reference_field:string stored_constructor:string = Location;
-locationOutgoing#43a456c7 predicate:string id_field:string file_reference_field:string = Location;
+locationOutgoing#fa35f534 predicate:string id_field:string file_reference_field:string stored_constructor:string = Location;
 
 origin#b62177bf flags:# predicate:string is_constructor:flags.0?true stored_constructor:string stored_params:Vector<FieldExtractor> skipped_flags:Vector<string> needs_parent:flags.3?string parent_is_constructor:flags.4?true = origin;
 
