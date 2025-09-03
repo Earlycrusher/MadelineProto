@@ -68,7 +68,6 @@ final class FileRefGenerator
         }
 
         $storyMethods = [];
-        //foreach (['stories.StoryViewsList', 'stories.Stories', 'stories.PeerStories', 'stories.StoryReactionsList'] as $t) {
         foreach (['stories.Stories'] as $t) {
             foreach ($TL->getMethodsOfType($t) as $method => $_) {
                 $storyMethods[$method] = true;
@@ -82,23 +81,6 @@ final class FileRefGenerator
                 );
             }
         }
-        /*
-        foreach (['stories.Stories'] as $t) {
-            foreach ($TL->getMethodsOfType($t) as $method => $_) {
-                $storyMethods[$method] = true;
-                $locations[$method][] = new CallOp(
-                    'stories.getStoriesByID',
-                    [
-                        'id' => new ArrayOp(new CopyOp([
-                            [$method, ''],
-                            ['stories.stories', 'stories', Path::FLAG_UNPACK_ARRAY],
-                            ['storyItem', 'id'],
-                        ])),
-                        'peer' => new GetInputPeerOp(new Path([[$method, 'peer']])),
-                    ]
-                );
-            }
-        }*/
 
         $locations['storyViewPublicRepost'][] = new CallOp(
             'stories.getStoriesByID',
@@ -116,14 +98,6 @@ final class FileRefGenerator
             ],
             'fileSourceStory'
         );
-
-        /*$locations['peerStories'][] = new CallOp(
-            'stories.getStoriesByID',
-            [
-                'id' => new ArrayOp(new CopyOp([['peerStories', 'stories', Path::FLAG_UNPACK_ARRAY], ['storyItem', 'id']])),
-                'peer' => new GetInputPeerOp(new Path([['peerStories', 'peer']])),
-            ]
-        );*/
 
         $locations['storyItem'][] = new CallOp(
             'stories.getStoriesByID',
@@ -188,26 +162,6 @@ final class FileRefGenerator
             ],
             'fileSourceAdminLog'
         );
-
-        /*
-        $locations['channels.getAdminLog'][] = new CallOp(
-            'channels.getAdminLog',
-            [
-                'channel' => new GetInputChannelOp(new Path([['channels.getAdminLog', 'channel']])),
-                'max_id' => new CopyOp([
-                    ['channels.getAdminLog', ''],
-                    ['channels.adminLogResults', 'events', Path::FLAG_UNPACK_ARRAY],
-                    ['channelAdminLogEvent', 'id'],
-                ]),
-                'min_id' => new CopyOp([
-                    ['channels.getAdminLog', ''],
-                    ['channels.adminLogResults', 'events', Path::FLAG_UNPACK_ARRAY],
-                    ['channelAdminLogEvent', 'id'],
-                ]),
-                'limit' => new PrimitiveLiteralOp('int', 1),
-                'q' => new PrimitiveLiteralOp('string', ''),
-            ]
-        );*/
 
         foreach (['stories.createAlbum', 'stories.getAlbums', 'stories.updateAlbum'] as $m) {
             $locations[$m][] = new CallOp('stories.getAlbums', [
@@ -275,29 +229,7 @@ final class FileRefGenerator
                     )),
                 ],
                 'fileSourceStarsTransaction'
-            );/*
-    $locations[$method][] = new CallOp(
-        'payments.getStarsTransactionsByID',
-        [
-            'peer' => new CopyOp([[$method, 'peer']]),
-            ...($method === 'payments.getStarsSubscriptions' ? [] : ['ton' => new CopyOp([[$method, 'ton', Path::FLAG_PASSTHROUGH]])]),
-            'id' => new ArrayOp(new ConstructorOp(
-                'inputStarsTransaction',
-                [
-                    'id' => new CopyOp([
-                        [$method, ''],
-                        ['payments.starsStatus', 'history', Path::FLAG_IF_ABSENT_ABORT|Path::FLAG_UNPACK_ARRAY],
-                        ['starsTransaction', 'id'],
-                    ]),
-                    'refund' => new CopyOp([
-                        [$method, ''],
-                        ['payments.starsStatus', 'history', Path::FLAG_IF_ABSENT_ABORT|Path::FLAG_UNPACK_ARRAY],
-                        ['starsTransaction', 'refund', Path::FLAG_PASSTHROUGH],
-                    ]),
-                ]
-            )),
-        ]
-    );*/
+            );
         }
         $locations['attachMenuBot'][] = new CallOp(
             'messages.getAttachMenuBot',
@@ -380,20 +312,6 @@ final class FileRefGenerator
             ],
             'fileSourceUserProfilePhoto'
         );
-        /*
-        $locations['photos.getUserPhotos'][] = new CallOp(
-            'photos.getUserPhotos',
-            [
-                'user_id' => new CopyOp([['photos.getUserPhotos', 'user_id']]),
-                'offset' => new PrimitiveLiteralOp('int', -1),
-                'max_id' => new CopyOp([
-                    ['photos.getUserPhotos', ''],
-                    ['photos.photos', 'photos', Path::FLAG_UNPACK_ARRAY],
-                    ['photo', 'id'],
-                ]),
-                'limit' => new PrimitiveLiteralOp('int', 1),
-            ]
-        );*/
 
         foreach (['photos.updateProfilePhoto', 'photos.uploadProfilePhoto'] as $method) {
             $locations[$method][] = new CallOp(
