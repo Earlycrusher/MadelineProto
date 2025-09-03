@@ -41,7 +41,7 @@ use danog\MadelineProto\TL\TL;
 
 final class FileRefGenerator
 {
-    public static function generate(int $layer, string $inputSchema, string $outputFile, string $outputFileJson): void
+    public static function generate(int|string $layer, string $inputSchema, string $outputFile, string $outputFileJson): void
     {
         Magic::start(false);
         $schema = new TLSchema;

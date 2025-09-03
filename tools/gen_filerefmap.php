@@ -67,7 +67,7 @@ if (isset($argv[1])) {
     }
 
     FileRefGenerator::generate(
-        $layer,
+        $argv[1],
         $argv[1],
         $argv[2],
         $argv[3],
