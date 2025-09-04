@@ -44,6 +44,7 @@ final class Ast implements BuildMode
     private ?string $needsParent = null;
 
     public function __construct(
+        private readonly array $blacklistedPredicates,
         public readonly bool $allowUnpacking,
         private array $outputSchema = []
     ) {
@@ -82,14 +83,14 @@ final class Ast implements BuildMode
                 'stored_constructor' => $cons,
             ];
         }
-        $dbSchema = '';
+        $dbSchema = "boolFalse#bc799737 = Bool;\nboolTrue#997275b5 = Bool;\ntrue#3fedd339 = True;\nvector#1cb5c415 {t:Type} # [ t ] = Vector t;\n\n";
         foreach ($fileIdCons as $cons => $_) {
-            $dbSchema .= self::stringifySchema($cons, ['id' => 'long'], "FileId")."\n";
+            $dbSchema .= $this->stringifySchema($cons, ['id' => 'long'], "FileId")."\n";
         }
         $dbSchema .= "\n";
 
         foreach ($this->outputSchema as $constructor => $params) {
-            $dbSchema .= self::stringifySchema($constructor, $params, "FileSource")."\n";
+            $dbSchema .= $this->stringifySchema($constructor, $params, "FileSource")."\n";
         }
         $dbSchemaJSON = (new TL(null))->toJson($dbSchema);
 
@@ -115,6 +116,15 @@ final class Ast implements BuildMode
         $s = $s->setOther(['filerefs' => __DIR__ . '/../../../src/TL_file_ref_map_schema.tl']);
         $TL = new TL((new ReflectionClass(MTProto::class))->newInstanceWithoutConstructor());
         $TL->init($s);
+
+        $json = $TL->toJson(__DIR__ . '/../../../src/TL_file_ref_map_schema.tl');
+        foreach ($json['constructors'] as $constructor) {
+            Assert::keyNotExists($this->blacklistedPredicates, $constructor['predicate'], "{$constructor['predicate']} is blacklisted and cannot be used in the schema");
+        }
+        foreach ($json['methods'] as $method) {
+            Assert::keyNotExists($this->blacklistedPredicates, $method['method'], "{$method['method']} is blacklisted and cannot be used in the schema");
+        }
+
         $serialized = $TL->serializeObject(['type' => 'FileReferenceOrigins'], $value, '');
         $valueDe = $TL->deserialize($serialized, ['type' => '', 'connection' => null, 'encrypted' => true]);
         Assert::true($value == $valueDe);
@@ -122,8 +132,9 @@ final class Ast implements BuildMode
         file_put_contents($refMapFileJson, json_encode($valueDe, flags: JSON_THROW_ON_ERROR));
     }
 
-    private static function stringifySchema(string $constructor, array $params, string $cType): string
+    private function stringifySchema(string $constructor, array $params, string $cType): string
     {
+        Assert::keyNotExists($this->blacklistedPredicates, $constructor, "$constructor is blacklisted and cannot be used in the schema");
         $paramsStr = "$constructor ";
         foreach ($params as $name => $type) {
             Assert::notContains($type, 'InputPeer', "$constructor cannot contain InputPeer");
@@ -192,7 +203,7 @@ final class Ast implements BuildMode
                     }
                 }
                 foreach ($stored as $name => ['type' => $type]) {
-                    throw new AssertionError("Leftover parameter $constructor.$name:$type for ".self::stringifySchema($constructor, $existing, 'FileSource'));
+                    throw new AssertionError("Leftover parameter $constructor.$name:$type for ".$this->stringifySchema($constructor, $existing, 'FileSource'));
                 }
             } else {
                 $types = [];

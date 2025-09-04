@@ -52,6 +52,10 @@ final class FileRefGenerator
         $TL = new TL(null);
         $TL->init($schema);
 
+        $blacklistedPredicates = array_fill_keys(array_column($TL->getConstructors()->by_id, 'predicate'), true)
+            + array_fill_keys(array_column($TL->getMethods()->by_id, 'method'), true);
+        unset($blacklistedPredicates['boolTrue'], $blacklistedPredicates['boolFalse'], $blacklistedPredicates['true'], $blacklistedPredicates['vector']);
+
         $TL = new TLWrapper($TL);
         $locations = [];
         Logger::log("Generating file reference map for layer $layer...");
@@ -494,7 +498,7 @@ final class FileRefGenerator
             }
         }
 
-        $tmp = new Ast(allowUnpacking: true, outputSchema: $pre);
+        $tmp = new Ast(blacklistedPredicates: $blacklistedPredicates, allowUnpacking: true, outputSchema: $pre);
         foreach ($incomingCons as $constructor => $_) {
             $type = ucfirst($constructor);
             $stack = [[$constructor, 'file_reference']];
@@ -583,7 +587,7 @@ final class FileRefGenerator
             throw new AssertionError("Leftover ops!");
         }
 
-        $output = new Ast(allowUnpacking: false, outputSchema: $pre);
+        $output = new Ast(blacklistedPredicates: $blacklistedPredicates, allowUnpacking: false, outputSchema: $pre);
         foreach ($locations as $constructor => $ops) {
             foreach ($ops as $idx => $op) {
                 $op->build(new TLContext($TL, $output, $constructor, $TL->isConstructor($constructor)));
