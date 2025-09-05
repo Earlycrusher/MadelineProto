@@ -97,7 +97,16 @@ final readonly class Path
             ];
             if (isset($part[2])) {
                 if ($part[2] instanceof TypedOp) {
-                    $newPart['flag'] = ['_' => 'paramIsFlagFallback', 'fallback' => $part[2]->build($tl)];
+                    $fallback = $part[2]->build($tl);
+                    array_walk_recursive($fallback, static function ($v): void {
+                        if (\is_array($v)
+                            && isset($v['_'])
+                            && \in_array($v['_'], ['copyOp', 'getInputChannelByIdOp', 'getInputUserByIdOp', 'getInputPeerByIdOp'], true)
+                        ) {
+                            throw new \InvalidArgumentException("Cannot use {$v['_']} as fallback in TypedOp");
+                        }
+                    });
+                    $newPart['flag'] = ['_' => 'paramIsFlagFallback', 'fallback' => $fallback];
                 } elseif (\is_int($part[2])) {
                     if ($part[2] & self::FLAG_UNPACK_ARRAY) {
                         if ($tl->buildMode instanceof Ast && !$tl->buildMode->allowUnpacking) {
