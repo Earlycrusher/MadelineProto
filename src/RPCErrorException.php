@@ -151,6 +151,7 @@ class RPCErrorException extends \Exception
                 || str_contains($error, 'INPUT_FETCH_ERROR_')
                 || str_contains($error, 'https://telegram.org/dl')
                 || str_starts_with($error, 'Received bad_msg_notification')
+                || str_starts_with($error, 'RECAPTCHA_CHECK_')
                 || str_starts_with($error, 'No workers running')
                 || str_starts_with($error, 'FLOOD_TEST_PHONE_WAIT_')
                 || str_starts_with($error, 'All workers are busy. Active_queries ')
