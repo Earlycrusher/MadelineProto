@@ -1,7 +1,8 @@
 <?php declare(strict_types=1);
 
+use Amp\Http\Client\HttpClientBuilder;
+use Amp\Http\Client\Request;
 use danog\MadelineProto\API;
-use danog\MadelineProto\Exception;
 use danog\MadelineProto\Logger;
 use danog\MadelineProto\PTSException;
 use danog\MadelineProto\RPCErrorException;
@@ -58,6 +59,27 @@ function getTL(TLSchema $schema)
 $schema = getTLSchema();
 $layer = getTL($schema);
 $res = '';
+
+$auth = '';
+try {
+    $auth = getenv('TELERPC_AUTH_TOKEN') ?: '';
+} catch (Throwable) {
+}
+Assert::true(preg_match('/^[a-zA-Z0-9_-]*$/', $auth) === 1, 'TELERPC_AUTH_TOKEN can only contain a-z, A-Z, 0-9, _ and -');
+
+if ($auth) {
+    $res = json_decode(
+        (
+            HttpClientBuilder::buildDefault()
+                ->request(new Request('https://report-rpc-error.madelineproto.xyz/?auth='.$auth.'&cleanup=1'))
+        )->getBody()->buffer(),
+        true,
+    );
+    Assert::true($res['ok']);
+    echo "Cleaned up old reports".PHP_EOL;
+} else {
+    echo "No TELERPC_AUTH_TOKEN set, not cleaning up old reports".PHP_EOL;
+}
 
 $settings = new Settings;
 $settings->setSchema($schema);

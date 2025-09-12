@@ -23,6 +23,7 @@ namespace danog\MadelineProto;
 use Amp\Http\Client\HttpClientBuilder;
 use Amp\Http\Client\Request;
 use Throwable;
+use Webmozart\Assert\Assert;
 
 use const PHP_EOL;
 
@@ -162,6 +163,7 @@ class RPCErrorException extends \Exception
                 || is_numeric($method);
     }
 
+    private static string $auth;
     /**
      * @internal
      */
@@ -176,10 +178,21 @@ class RPCErrorException extends \Exception
             && !self::isBad($error, $code, $method)
         ) {
             try {
+                if (!isset(self::$auth)) {
+                    $auth = '';
+                    try {
+                        $auth = getenv('TELERPC_AUTH_TOKEN') ?: '';
+                    } catch (Throwable) {
+                    }
+                    Assert::true(preg_match('/^[a-zA-Z0-9_-]*$/', $auth) === 1, 'TELERPC_AUTH_TOKEN can only contain a-z, A-Z, 0-9, _ and -');
+                    $auth = $auth === '' ? '' : 'auth='.$auth.'&';
+                    self::$auth = $auth;
+                }
+                $auth = self::$auth;
                 $res = json_decode(
                     (
                         HttpClientBuilder::buildDefault()
-                        ->request(new Request('https://report-rpc-error.madelineproto.xyz/?method='.$method.'&code='.$code.'&error='.$error))
+                        ->request(new Request('https://report-rpc-error.madelineproto.xyz/?'.$auth.'method='.$method.'&code='.$code.'&error='.$error))
                     )->getBody()->buffer(),
                     true,
                 );
