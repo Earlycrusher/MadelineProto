@@ -186,7 +186,86 @@ trait FilesAbstraction
             scheduleDate: $scheduleDate,
             sendAs: $sendAs,
             forceResend: $forceResend,
-            cancellation: $cancellation
+            cancellation: $cancellation,
+            uploadOnly: false,
+        );
+    }
+
+    /**
+     * Uploads a document without sending it.
+     *
+     * Please use named arguments to call this method.
+     *
+     * @param Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream      $file                   File to upload: can be a message to reuse media present in a message.
+     * @param Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream|null $thumb                  Optional: Thumbnail to upload
+     * @param integer|string|null                                                     $peer              Optional: associate the media to the specified peer or username.
+     * @param string                                                             $caption                Caption of document
+     * @param ?callable(float, float, int)                                       $callback               Upload callback (percent, speed in mpbs, time elapsed)
+     * @param ?string                                                            $fileName               Optional file name, if absent will be extracted from the passed $file.
+     * @param ParseMode                                                          $parseMode              Text parse mode for the caption
+     * @param integer|null                                                       $replyToMsgId           ID of message to reply to.
+     * @param integer|null                                                       $topMsgId               ID of thread where to send the message.
+     * @param array|null                                                         $replyMarkup            Keyboard information.
+     * @param integer|null                                                       $sendAs                 Peer to send the message as.
+     * @param integer|null                                                       $scheduleDate           Schedule date.
+     * @param boolean                                                            $silent                 Whether to send the message silently, without triggering notifications.
+     * @param boolean                                                            $background             Send this message as background message
+     * @param boolean                                                            $clearDraft             Clears the draft field
+     * @param boolean                                                            $updateStickersetsOrder Whether to move used stickersets to top
+     * @param boolean                                                            $forceResend            Whether to forcefully resend the file, even if its type and name are the same.
+     * @param Cancellation                                                       $cancellation           Cancellation.
+     *
+     */
+    public function uploadDocument(
+        Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file,
+        Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream|null $thumb = null,
+        int|string|null $peer = null,
+        string $caption = '',
+        ParseMode $parseMode = ParseMode::TEXT,
+        ?callable $callback = null,
+        ?string $fileName = null,
+        ?string $mimeType = null,
+        ?int $ttl = null,
+        bool $spoiler = false,
+        ?int $replyToMsgId = null,
+        ?int $topMsgId = null,
+        ?array $replyMarkup = null,
+        int|string|null $sendAs = null,
+        ?int $scheduleDate = null,
+        bool $silent = false,
+        bool $noForwards = false,
+        bool $background = false,
+        bool $clearDraft = false,
+        bool $updateStickersetsOrder = false,
+        bool $forceResend = false,
+        ?Cancellation $cancellation = null,
+    ): Media {
+        return $this->sendMedia(
+            type: Document::class,
+            mimeType: $mimeType,
+            thumb: $thumb,
+            attributesOrig: [],
+            peer: $peer,
+            file: $file,
+            caption: $caption,
+            parseMode: $parseMode,
+            callback: $callback,
+            fileName: $fileName,
+            ttl: $ttl,
+            spoiler: $spoiler,
+            silent: $silent,
+            background: $background,
+            clearDraft: $clearDraft,
+            noForwards: $noForwards,
+            updateStickersetsOrder: $updateStickersetsOrder,
+            replyToMsgId: $replyToMsgId,
+            topMsgId: $topMsgId,
+            replyMarkup: $replyMarkup,
+            scheduleDate: $scheduleDate,
+            sendAs: $sendAs,
+            forceResend: $forceResend,
+            cancellation: $cancellation,
+            uploadOnly: true,
         );
     }
     /**
@@ -259,7 +338,82 @@ trait FilesAbstraction
             scheduleDate: $scheduleDate,
             sendAs: $sendAs,
             forceResend: $forceResend,
-            cancellation: $cancellation
+            cancellation: $cancellation,
+            uploadOnly: false,
+        );
+    }
+    /**
+     * Uploads a photo, without sending it.
+     *
+     * Please use named arguments to call this method.
+     *
+     * @param Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file                   File to upload: can be a message to reuse media present in a message.
+     * @param string                                                        $caption                Caption of document
+     * @param integer|string|null                                           $peer                   Optional: associate the media to the specified peer or username.
+     * @param ?callable(float, float, int)                                  $callback               Upload callback (percent, speed in mpbs, time elapsed)
+     * @param ?string                                                       $fileName               Optional file name, if absent will be extracted from the passed $file.
+     * @param ParseMode                                                     $parseMode              Text parse mode for the caption
+     * @param integer|null                                                  $replyToMsgId           ID of message to reply to.
+     * @param integer|null                                                  $topMsgId               ID of thread where to send the message.
+     * @param array|null                                                    $replyMarkup            Keyboard information.
+     * @param integer|null                                                  $sendAs                 Peer to send the message as.
+     * @param integer|null                                                  $scheduleDate           Schedule date.
+     * @param boolean                                                       $silent                 Whether to send the message silently, without triggering notifications.
+     * @param boolean                                                       $background             Send this message as background message
+     * @param boolean                                                       $clearDraft             Clears the draft field
+     * @param boolean                                                       $updateStickersetsOrder Whether to move used stickersets to top
+     * @param boolean                                                       $forceResend            Whether to forcefully resend the file, even if its type and name are the same.
+     * @param Cancellation                                                  $cancellation           Cancellation.
+     *
+     */
+    public function uploadPhoto(
+        Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file,
+        int|string|null $peer = null,
+        string $caption = '',
+        ParseMode $parseMode = ParseMode::TEXT,
+        ?callable $callback = null,
+        ?string $fileName = null,
+        ?int $ttl = null,
+        bool $spoiler = false,
+        ?int $replyToMsgId = null,
+        ?int $topMsgId = null,
+        ?array $replyMarkup = null,
+        int|string|null $sendAs = null,
+        ?int $scheduleDate = null,
+        bool $silent = false,
+        bool $noForwards = false,
+        bool $background = false,
+        bool $clearDraft = false,
+        bool $updateStickersetsOrder = false,
+        bool $forceResend = false,
+        ?Cancellation $cancellation = null,
+    ): Media {
+        return $this->sendMedia(
+            type: Photo::class,
+            mimeType: 'image/jpeg',
+            thumb: null,
+            attributesOrig: [],
+            peer: $peer,
+            file: $file,
+            caption: $caption,
+            parseMode: $parseMode,
+            callback: $callback,
+            fileName: $fileName,
+            ttl: $ttl,
+            spoiler: $spoiler,
+            silent: $silent,
+            background: $background,
+            clearDraft: $clearDraft,
+            noForwards: $noForwards,
+            updateStickersetsOrder: $updateStickersetsOrder,
+            replyToMsgId: $replyToMsgId,
+            topMsgId: $topMsgId,
+            replyMarkup: $replyMarkup,
+            scheduleDate: $scheduleDate,
+            sendAs: $sendAs,
+            forceResend: $forceResend,
+            cancellation: $cancellation,
+            uploadOnly: true,
         );
     }
     /**
@@ -332,7 +486,82 @@ trait FilesAbstraction
             scheduleDate: $scheduleDate,
             sendAs: $sendAs,
             forceResend: $forceResend,
-            cancellation: $cancellation
+            cancellation: $cancellation,
+            uploadOnly: false,
+        );
+    }
+    /**
+     * Uploads a photo without sending it to the chat.
+     *
+     * Please use named arguments to call this method.
+     *
+     * @param Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file                   File to upload: can be a message to reuse media present in a message.
+     * @param string                                                        $caption                Caption of document
+     * @param integer|string|null                                           $peer                   Optional: associate the file to the destination peer or username.
+     * @param ?callable(float, float, int)                                  $callback               Upload callback (percent, speed in mpbs, time elapsed)
+     * @param ?string                                                       $fileName               Optional file name, if absent will be extracted from the passed $file.
+     * @param ParseMode                                                     $parseMode              Text parse mode for the caption
+     * @param integer|null                                                  $replyToMsgId           ID of message to reply to.
+     * @param integer|null                                                  $topMsgId               ID of thread where to send the message.
+     * @param array|null                                                    $replyMarkup            Keyboard information.
+     * @param integer|null                                                  $sendAs                 Peer to send the message as.
+     * @param integer|null                                                  $scheduleDate           Schedule date.
+     * @param boolean                                                       $silent                 Whether to send the message silently, without triggering notifications.
+     * @param boolean                                                       $background             Send this message as background message
+     * @param boolean                                                       $clearDraft             Clears the draft field
+     * @param boolean                                                       $updateStickersetsOrder Whether to move used stickersets to top
+     * @param boolean                                                       $forceResend            Whether to forcefully resend the file, even if its type and name are the same.
+     * @param Cancellation                                                  $cancellation           Cancellation.
+     *
+     */
+    public function uploadDocumentPhoto(
+        Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file,
+        int|string|null $peer = null,
+        string $caption = '',
+        ParseMode $parseMode = ParseMode::TEXT,
+        ?callable $callback = null,
+        ?string $fileName = null,
+        ?int $ttl = null,
+        bool $spoiler = false,
+        ?int $replyToMsgId = null,
+        ?int $topMsgId = null,
+        ?array $replyMarkup = null,
+        int|string|null $sendAs = null,
+        ?int $scheduleDate = null,
+        bool $silent = false,
+        bool $noForwards = false,
+        bool $background = false,
+        bool $clearDraft = false,
+        bool $updateStickersetsOrder = false,
+        bool $forceResend = false,
+        ?Cancellation $cancellation = null,
+    ): Media {
+        return $this->sendMedia(
+            type: DocumentPhoto::class,
+            mimeType: 'image/jpeg',
+            thumb: null,
+            attributesOrig: [],
+            peer: $peer,
+            file: $file,
+            caption: $caption,
+            parseMode: $parseMode,
+            callback: $callback,
+            fileName: $fileName,
+            ttl: $ttl,
+            spoiler: $spoiler,
+            silent: $silent,
+            background: $background,
+            clearDraft: $clearDraft,
+            noForwards: $noForwards,
+            updateStickersetsOrder: $updateStickersetsOrder,
+            replyToMsgId: $replyToMsgId,
+            topMsgId: $topMsgId,
+            replyMarkup: $replyMarkup,
+            scheduleDate: $scheduleDate,
+            sendAs: $sendAs,
+            forceResend: $forceResend,
+            cancellation: $cancellation,
+            uploadOnly: true,
         );
     }
     /**
@@ -404,7 +633,81 @@ trait FilesAbstraction
             scheduleDate: $scheduleDate,
             sendAs: $sendAs,
             forceResend: $forceResend,
-            cancellation: $cancellation
+            cancellation: $cancellation,
+            uploadOnly: false,
+        );
+    }
+    /**
+     * Uploads a sticker without sending it.
+     *
+     * Please use named arguments to call this method.
+     *
+     * @param Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file                   File to upload: can be a message to reuse media present in a message.
+     * @param ?callable(float, float, int)                                  $callback               Upload callback (percent, speed in mpbs, time elapsed)
+     * @param ?string                                                       $fileName               Optional file name, if absent will be extracted from the passed $file.
+     * @param integer|string|null                                           $peer                   Optional: associate the file to the specified peer or username.
+     * @param integer|null                                                  $replyToMsgId           ID of message to reply to.
+     * @param integer|null                                                  $topMsgId               ID of thread where to send the message.
+     * @param array|null                                                    $replyMarkup            Keyboard information.
+     * @param integer|null                                                  $sendAs                 Peer to send the message as.
+     * @param integer|null                                                  $scheduleDate           Schedule date.
+     * @param boolean                                                       $silent                 Whether to send the message silently, without triggering notifications.
+     * @param boolean                                                       $noForwards             Whether to disable forwards for this message.
+     * @param boolean                                                       $background             Send this message as background message
+     * @param boolean                                                       $clearDraft             Clears the draft field
+     * @param boolean                                                       $updateStickersetsOrder Whether to move used stickersets to top
+     * @param boolean                                                       $forceResend            Whether to forcefully resend the file, even if its type and name are the same.
+     * @param Cancellation                                                  $cancellation           Cancellation.
+     *
+     */
+    public function uploadSticker(
+        Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file,
+        string $mimeType,
+        int|string|null $peer = null,
+        string $emoji = '',
+        array $stickerSet = ['_' => 'inputStickerSetEmpty'],
+        ?callable $callback = null,
+        ?string $fileName = null,
+        ?int $ttl = null,
+        ?int $replyToMsgId = null,
+        ?int $topMsgId = null,
+        ?array $replyMarkup = null,
+        int|string|null $sendAs = null,
+        ?int $scheduleDate = null,
+        bool $silent = false,
+        bool $noForwards = false,
+        bool $background = false,
+        bool $clearDraft = false,
+        bool $updateStickersetsOrder = false,
+        bool $forceResend = false,
+        ?Cancellation $cancellation = null,
+    ): Media {
+        return $this->sendMedia(
+            type: Sticker::class,
+            mimeType: $mimeType,
+            thumb: null,
+            attributesOrig: ['_' => 'documentAttributeSticker', 'alt' => $emoji, 'stickerset' => $stickerSet],
+            peer: $peer,
+            file: $file,
+            caption: '',
+            parseMode: ParseMode::TEXT,
+            callback: $callback,
+            fileName: $fileName,
+            ttl: $ttl,
+            spoiler: false,
+            silent: $silent,
+            background: $background,
+            clearDraft: $clearDraft,
+            noForwards: $noForwards,
+            updateStickersetsOrder: $updateStickersetsOrder,
+            replyToMsgId: $replyToMsgId,
+            topMsgId: $topMsgId,
+            replyMarkup: $replyMarkup,
+            scheduleDate: $scheduleDate,
+            sendAs: $sendAs,
+            forceResend: $forceResend,
+            cancellation: $cancellation,
+            uploadOnly: true,
         );
     }
     /**
@@ -503,7 +806,108 @@ trait FilesAbstraction
             scheduleDate: $scheduleDate,
             sendAs: $sendAs,
             forceResend: $forceResend,
-            cancellation: $cancellation
+            cancellation: $cancellation,
+            uploadOnly: false,
+        );
+    }
+    /**
+     * Uploads a video, without actually sending it.
+     *
+     * Please use named arguments to call this method.
+     *
+     * @param Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file                   File to upload: can be a message to reuse media present in a message.
+     * @param Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream|null $thumb                  Optional: Thumbnail to upload
+     * @param integer|string|null                                           $peer                   Optional: associate the media to the specified peer or username.
+     * @param string                                                        $caption                Caption of document
+     * @param ParseMode                                                     $parseMode              Text parse mode for the caption
+     * @param ?callable(float, float, int)                                  $callback               Upload callback (percent, speed in mpbs, time elapsed)
+     * @param ?string                                                       $fileName               Optional file name, if absent will be extracted from the passed $file.
+     * @param integer|null                                                  $ttl                     Time to live
+     * @param boolean                                                       $spoiler                 Whether the message is a spoiler
+     * @param boolean                                                       $roundMessage            Whether the message should be round
+     * @param boolean                                                       $supportsStreaming        Whether the video supports streaming
+     * @param boolean                                                       $noSound                 Whether the video has no sound
+     * @param integer|null                                                  $duration                Duration of the video
+     * @param integer|null                                                  $width                   Width of the video
+     * @param integer|null                                                  $height                  Height of the video
+     * @param integer|null                                                  $replyToMsgId            ID of message to reply to.
+     * @param integer|null                                                  $topMsgId                ID of thread where to send the message.
+     * @param array|null                                                    $replyMarkup             Keyboard information.
+     * @param integer|string|null                                           $sendAs                 Peer to send the message as.
+     * @param integer|null                                                  $scheduleDate            Schedule date.
+     * @param boolean                                                       $silent                  Whether to send the message silently, without triggering notifications.
+     * @param boolean                                                       $noForwards              Whether to disable forwards for this message.
+     * @param boolean                                                       $background              Send this message as background message
+     * @param boolean                                                       $clearDraft              Clears the draft field
+     * @param boolean                                                       $forceResend             Whether to forcefully resend the file, even if its type and name are the same.
+     * @param Cancellation                                                  $cancellation            Cancellation.
+     *
+     */
+    public function uploadVideo(
+        Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file,
+        Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream|null $thumb = null,
+        int|string|null $peer = null,
+        string $caption = '',
+        ParseMode $parseMode = ParseMode::TEXT,
+        ?callable $callback = null,
+        ?string $fileName = null,
+        string $mimeType = 'video/mp4',
+        ?int $ttl = null,
+        bool $spoiler = false,
+        bool $roundMessage = false,
+        bool $supportsStreaming = true,
+        bool $noSound = false,
+        ?int $duration = null,
+        ?int $width = null,
+        ?int $height = null,
+        string $thumbSeek = '00:00:01.000',
+        ?int $replyToMsgId = null,
+        ?int $topMsgId = null,
+        ?array $replyMarkup = null,
+        int|string|null $sendAs = null,
+        ?int $scheduleDate = null,
+        bool $silent = false,
+        bool $noForwards = false,
+        bool $background = false,
+        bool $clearDraft = false,
+        bool $forceResend = false,
+        bool $updateStickersetsOrder = false,
+        ?Cancellation $cancellation = null,
+    ): Media {
+        return $this->sendMedia(
+            type: Video::class,
+            mimeType: $mimeType,
+            thumb: $thumb,
+            attributesOrig: [
+                'round_message' => $roundMessage,
+                'supports_streaming' => $supportsStreaming,
+                'no_sound' => $noSound,
+                'duration' => $duration,
+                'w' => $width,
+                'h' => $height,
+                'thumbSeek' => $thumbSeek,
+            ],
+            peer: $peer,
+            file: $file,
+            caption: $caption,
+            parseMode: $parseMode,
+            callback: $callback,
+            fileName: $fileName,
+            ttl: $ttl,
+            spoiler: $spoiler,
+            silent: $silent,
+            background: $background,
+            clearDraft: $clearDraft,
+            noForwards: $noForwards,
+            updateStickersetsOrder: $updateStickersetsOrder,
+            replyToMsgId: $replyToMsgId,
+            topMsgId: $topMsgId,
+            replyMarkup: $replyMarkup,
+            scheduleDate: $scheduleDate,
+            sendAs: $sendAs,
+            forceResend: $forceResend,
+            cancellation: $cancellation,
+            uploadOnly: true,
         );
     }
     /**
@@ -591,7 +995,97 @@ trait FilesAbstraction
             scheduleDate: $scheduleDate,
             sendAs: $sendAs,
             forceResend: $forceResend,
-            cancellation: $cancellation
+            cancellation: $cancellation,
+            uploadOnly: false
+        );
+    }
+    /**
+     * Uploads a gif without actually sending it.
+     *
+     * Please use named arguments to call this method.
+     *
+     * @param Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file                   File to upload: can be a message to reuse media present in a message.
+     * @param Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream|null $thumb                  Optional: Thumbnail to upload
+     * @param integer|string|null                                                $peer                   Optional: associate the media to the peer or username.
+     * @param string                                                        $caption                Caption of document
+     * @param ParseMode                                                     $parseMode              Text parse mode for the caption
+     * @param ?callable(float, float, int)                                  $callback               Upload callback (percent, speed in mpbs, time elapsed)
+     * @param ?string                                                       $fileName               Optional file name, if absent will be extracted from the passed $file.
+     * @param integer|null                                                  $ttl                     Time to live
+     * @param boolean                                                       $spoiler                 Whether the message is a spoiler
+     * @param integer|null                                                  $replyToMsgId            ID of message to reply to.
+     * @param integer|null                                                  $topMsgId                ID of thread where to send the message.
+     * @param array|null                                                    $replyMarkup             Keyboard information.
+     * @param integer|string|null                                           $sendAs                 Peer to send the message as.
+     * @param integer|null                                                  $scheduleDate            Schedule date.
+     * @param boolean                                                       $silent                  Whether to send the message silently, without triggering notifications.
+     * @param boolean                                                       $noForwards              Whether to disable forwards for this message.
+     * @param boolean                                                       $background              Send this message as background message
+     * @param boolean                                                       $clearDraft              Clears the draft field
+     * @param boolean                                                       $forceResend             Whether to forcefully resend the file, even if its type and name are the same.
+     * @param ?Cancellation                                                  $cancellation            Cancellation.
+     *
+     */
+    public function uploadGif(
+        Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream $file,
+        Message|Media|LocalFile|RemoteUrl|BotApiFileId|ReadableStream|null $thumb = null,
+        int|string|null $peer = null,
+        string $caption = '',
+        ParseMode $parseMode = ParseMode::TEXT,
+        ?callable $callback = null,
+        ?string $fileName = null,
+        ?int $ttl = null,
+        bool $spoiler = false,
+        ?int $duration = null,
+        ?int $width = null,
+        ?int $height = null,
+        string $thumbSeek = '00:00:01.000',
+        ?int $replyToMsgId = null,
+        ?int $topMsgId = null,
+        ?array $replyMarkup = null,
+        int|string|null $sendAs = null,
+        ?int $scheduleDate = null,
+        bool $silent = false,
+        bool $noForwards = false,
+        bool $background = false,
+        bool $clearDraft = false,
+        bool $forceResend = false,
+        ?Cancellation $cancellation = null,
+    ): Media {
+        return $this->sendMedia(
+            type: Gif::class,
+            mimeType: 'video/mp4',
+            thumb: $thumb,
+            attributesOrig: [
+                'round_message' => false,
+                'supports_streaming' => true,
+                'no_sound' => true,
+                'duration' => $duration,
+                'w' => $width,
+                'h' => $height,
+                'thumbSeek' => $thumbSeek,
+            ],
+            peer: $peer,
+            file: $file,
+            caption: $caption,
+            parseMode: $parseMode,
+            callback: $callback,
+            fileName: $fileName,
+            ttl: $ttl,
+            spoiler: $spoiler,
+            silent: $silent,
+            background: $background,
+            clearDraft: $clearDraft,
+            noForwards: $noForwards,
+            updateStickersetsOrder: false,
+            replyToMsgId: $replyToMsgId,
+            topMsgId: $topMsgId,
+            replyMarkup: $replyMarkup,
+            scheduleDate: $scheduleDate,
+            sendAs: $sendAs,
+            forceResend: $forceResend,
+            cancellation: $cancellation,
+            uploadOnly: true,
         );
     }
     /**
@@ -763,6 +1257,8 @@ trait FilesAbstraction
      * Sends a media.
      *
      * @param class-string<Media> $type
+     * 
+     * @return $uploadOnly ? Media : Message
      * @internal
      */
     public function sendMedia(
@@ -790,7 +1286,8 @@ trait FilesAbstraction
         bool $updateStickersetsOrder,
         bool $forceResend,
         ?Cancellation $cancellation,
-    ): Message {
+        bool $uploadOnly,
+    ): Message|Media {
         if ($file instanceof Message) {
             $file = $file->media;
             if ($file === null) {
@@ -892,7 +1389,7 @@ trait FilesAbstraction
         $attributes[] = ['_' => 'documentAttributeFilename', 'file_name' => $fileName];
 
         if (DialogId::isSecretChat($peer)) {
-            $method = 'messages.sendEncryptedFile';
+            $method = 'messages.uploadEncryptedFile';
             $message = [
                 '_' => 'decryptedMessage',
                 'ttl' => $ttl,
@@ -977,7 +1474,7 @@ trait FilesAbstraction
                 $thumb = new Bytes($thumb);
             }
 
-            // TODO: audio, video
+            // TODO: legacy audio, video (probably not even worth it)
             $message['media'] = match ($type) {
                 Photo::class => [
                     '_' => 'decryptedMessageMediaPhoto',
@@ -1027,6 +1524,11 @@ trait FilesAbstraction
                 'file' => $file,
                 'cancellation' => $cancellation,
             ];
+            $res = $this->methodCallAsyncRead(
+                $method,
+                $params
+            );
+            $params['file'] = $res;
         } else {
 
             if ($reuseId) {
@@ -1045,7 +1547,7 @@ trait FilesAbstraction
                 ];
             }
 
-            $method = 'messages.sendMedia';
+            $method = 'messages.uploadMedia';
             $media = match ($type) {
                 Photo::class => [
                     '_' => 'inputMediaUploadedPhoto',
@@ -1133,8 +1635,16 @@ trait FilesAbstraction
                 'media' => $media,
                 'cancellation' => $cancellation,
             ];
+            $res = $this->methodCallAsyncRead(
+                $method,
+                $params
+            );
+            $params['media'] = $res;
         }
 
+        if ($uploadOnly) {
+            return $this->wrapMedia($res);
+        }
         $res = $this->wrapMessage($this->extractMessage($this->methodCallAsyncRead(
             $method,
             $params

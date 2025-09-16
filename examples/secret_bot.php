@@ -56,6 +56,11 @@ class SecretHandler extends SimpleEventHandler
     }
     public function onStart(): void
     {
+        $a = $this->account->getSavedMusicIds();
+        /*var_dump($this->payments->getResaleStarGifts(
+            gift_id: 
+        ));*/
+        readline();
     }
     /**
      * Handle updates from users.
