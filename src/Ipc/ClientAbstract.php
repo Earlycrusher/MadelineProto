@@ -130,6 +130,7 @@ abstract class ClientAbstract
                         }
                         $f->complete();
                         $this->serverFuture = null;
+                        $this->logger('Resumed IPC queries!');
                     } catch (Throwable $e) {
                         $f->error($e);
                         throw $e;
