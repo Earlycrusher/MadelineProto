@@ -29,6 +29,7 @@ final class Lang
         'it' => 100,
         'ckb' => 74,
         'fa' => 100,
+        'pl' => 1,
         'pt' => 81,
         'ru' => 82,
         'uz' => 100,

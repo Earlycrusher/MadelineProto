@@ -348,12 +348,12 @@ interface Bots
     public function updateStarRefProgram(array|int|string|null $bot = null, int|null $commission_permille = 0, int|null $duration_months = null, ?int $floodWaitLimit = null, ?string $queueId = null, ?\Amp\Cancellation $cancellation = null): array;
 
     /**
+     * Verify a user or chat [on behalf of an organization »](https://core.telegram.org/api/bots/verification).
      *
-     *
-     * @param bool $enabled
-     * @param array|int|string $bot @see https://docs.madelineproto.xyz/API_docs/types/InputUser.html
-     * @param array|int|string $peer @see https://docs.madelineproto.xyz/API_docs/types/InputPeer.html
-     * @param string $custom_description
+     * @param bool $enabled If set, adds the verification; otherwise removes verification.
+     * @param array|int|string $bot Must **not** be set if invoked by a bot, **must** be set to the ID of an owned bot if invoked by a user. @see https://docs.madelineproto.xyz/API_docs/types/InputUser.html
+     * @param array|int|string $peer The peer to verify @see https://docs.madelineproto.xyz/API_docs/types/InputPeer.html
+     * @param string $custom_description Custom description for the verification, the UTF-8 length limit for this field is contained in [bot\_verification\_description\_length\_limit »](https://core.telegram.org/api/config#bot-verification-description-length-limit). <br>If not set, `Was verified by organization "organization_name"` will be used as description.
      * @param ?int $floodWaitLimit Can be used to specify a custom flood wait limit: if a FLOOD_WAIT_ rate limiting error is received with a waiting period bigger than this integer, an RPCErrorException will be thrown; otherwise, MadelineProto will simply wait for the specified amount of time. Defaults to the value specified in the settings: https://docs.madelineproto.xyz/PHP/danog/MadelineProto/Settings/RPC.html#setfloodtimeout-int-floodtimeout-self
      * @param ?string $queueId If specified, ensures strict server-side execution order of concurrent calls with the same queue ID.
      * @param ?\Amp\Cancellation $cancellation Cancellation
@@ -361,9 +361,9 @@ interface Bots
     public function setCustomVerification(bool|null $enabled = null, array|int|string|null $bot = null, array|int|string|null $peer = null, string|null $custom_description = null, ?int $floodWaitLimit = null, ?string $queueId = null, ?\Amp\Cancellation $cancellation = null): bool;
 
     /**
+     * Obtain a list of similarly themed bots, selected based on similarities in their subscriber bases, see [here »](https://core.telegram.org/api/recommend) for more info.
      *
-     *
-     * @param array|int|string $bot @see https://docs.madelineproto.xyz/API_docs/types/InputUser.html
+     * @param array|int|string $bot The method will return bots related to the passed bot. @see https://docs.madelineproto.xyz/API_docs/types/InputUser.html
      * @param ?int $floodWaitLimit Can be used to specify a custom flood wait limit: if a FLOOD_WAIT_ rate limiting error is received with a waiting period bigger than this integer, an RPCErrorException will be thrown; otherwise, MadelineProto will simply wait for the specified amount of time. Defaults to the value specified in the settings: https://docs.madelineproto.xyz/PHP/danog/MadelineProto/Settings/RPC.html#setfloodtimeout-int-floodtimeout-self
      * @param ?string $queueId If specified, ensures strict server-side execution order of concurrent calls with the same queue ID.
      * @param ?\Amp\Cancellation $cancellation Cancellation
