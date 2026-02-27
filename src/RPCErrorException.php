@@ -201,7 +201,8 @@ class RPCErrorException extends \Exception
                     self::$descriptions[$error] = $description;
                     self::$errorMethodMap[$code][$method][$error] = $error;
                 }
-            } catch (Throwable) {
+            } catch (Throwable $e) {
+                Logger::log("Failed to report RPC error: $error (code $code) in method $method: ".$e->getMessage());
             }
         }
         if (!$description) {
