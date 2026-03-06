@@ -60,7 +60,7 @@
             "type": "FileReferenceMap"
         },
         {
-            "id": "-511217420",
+            "id": "-1637001781",
             "predicate": "locationIncoming",
             "params": [
                 {
@@ -70,12 +70,16 @@
                 {
                     "name": "stored_constructor",
                     "type": "string"
+                },
+                {
+                    "name": "traverse",
+                    "type": "Vector<TraversePart>"
                 }
             ],
             "type": "Location"
         },
         {
-            "id": "-411825440",
+            "id": "1406298894",
             "predicate": "locationOutgoing",
             "params": [
                 {
@@ -85,6 +89,10 @@
                 {
                     "name": "stored_constructor",
                     "type": "string"
+                },
+                {
+                    "name": "traverse",
+                    "type": "Vector<TraversePart>"
                 }
             ],
             "type": "Location"
@@ -213,6 +221,37 @@
                 }
             ],
             "type": "PathPart"
+        },
+        {
+            "id": "1422205210",
+            "predicate": "traversePart",
+            "params": [
+                {
+                    "name": "flags",
+                    "type": "#"
+                },
+                {
+                    "name": "constructor",
+                    "type": "string"
+                },
+                {
+                    "name": "param",
+                    "type": "string"
+                },
+                {
+                    "name": "is_method",
+                    "type": "flags.0?true"
+                },
+                {
+                    "name": "is_flag",
+                    "type": "flags.1?true"
+                },
+                {
+                    "name": "is_vector",
+                    "type": "flags.2?true"
+                }
+            ],
+            "type": "TraversePart"
         },
         {
             "id": "204834466",

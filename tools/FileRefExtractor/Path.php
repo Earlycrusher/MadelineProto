@@ -93,6 +93,8 @@ final readonly class Path
             '_' => 'traversePart',
             'constructor' => $part[0],
             'is_method' => $part[3] ?? false,
+            'is_vector' => false,
+            'is_flag' => false,
             'param' => $part[1],
         ];
         if (isset($part[2])) {

@@ -26,6 +26,7 @@ use danog\MadelineProto\MTProto;
 use danog\MadelineProto\Settings\TLSchema;
 use danog\MadelineProto\TL\TL;
 use ReflectionClass;
+use SebastianBergmann\Diff\Differ;
 use Webmozart\Assert\Assert;
 
 final class Ast implements BuildMode
@@ -137,8 +138,16 @@ final class Ast implements BuildMode
 
         $serialized = $TL->serializeObject(['type' => 'FileReferenceMap'], $value, '');
         $valueDe = $TL->deserialize($serialized, ['type' => '', 'connection' => null, 'encrypted' => true]);
-        var_dump($valueDe['locations']);
-        Assert::true($value == $valueDe, "Deserialized value does not match original value");
+        if ($value != $valueDe) {
+            $differ = new Differ;
+            $sortedValue = $this->sortKeysRecursive($value);
+            $sortedValueDe = $this->sortKeysRecursive($valueDe);
+            $diff = $differ->diff(
+                json_encode($sortedValue, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR),
+                json_encode($sortedValueDe, JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR)
+            );
+            Assert::true(false, "Deserialized value does not match original value. Diff:\n$diff");
+        }
         file_put_contents($refMapFile, $serialized);
         file_put_contents($refMapFileJson, json_encode($valueDe, flags: JSON_THROW_ON_ERROR));
     }
@@ -316,5 +325,15 @@ final class Ast implements BuildMode
             throw new \LogicException("Cannot change needsParent from {$this->needsParent} to {$needsParent} once it has been set.");
         }
         $this->needsParent = $needsParent;
+    }
+    private function sortKeysRecursive(array &$array): array
+    {
+        ksort($array);
+        foreach ($array as $key => $value) {
+            if (\is_array($value)) {
+                $array[$key] = $this->sortKeysRecursive($value);
+            }
+        }
+        return $array;
     }
 }
