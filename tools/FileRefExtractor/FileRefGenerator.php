@@ -482,7 +482,7 @@ final class FileRefGenerator
                             && $param['subtype'] === $type
                         )
                     )) {
-                        $stack[$pos] = [$predicate, $param['name']];
+                        $stack[$pos] = [$predicate, $param['name'], 0];
                         if (isset($param['pow'])) {
                             $stack[$pos][2] = Path::FLAG_IF_ABSENT_ABORT;
                         }
@@ -491,10 +491,12 @@ final class FileRefGenerator
                             $stack[$pos][2] = $oldFlag | Path::FLAG_UNPACK_ARRAY;
                         }
                         if ($isMethod) {
+                            $stack[$pos][3] = true;
                             if (!$incoming) {
                                 $onStackEnd($stack);
                             }
                         } else {
+                            $stack[$pos][3] = false;
                             $recurse($onStackEnd, $t, $stack, $stackTypes, $incoming);
                         }
                         unset($stack[$pos]);
@@ -506,11 +508,11 @@ final class FileRefGenerator
 
             if ($incoming) {
                 foreach ($TL->getMethodsOfType($type, true) as $method => $data) {
-                    $stack[$pos] = [$method, ''];
+                    $stack[$pos] = [$method, '', 0, true];
                     $onStackEnd($stack);
                 }
                 foreach ($TL->getMethodsOfType("Vector<$type>", true) as $method => $data) {
-                    $stack[$pos] = [$method, '', Path::FLAG_UNPACK_ARRAY];
+                    $stack[$pos] = [$method, '', Path::FLAG_UNPACK_ARRAY, true];
                     $onStackEnd($stack);
                 }
             }
@@ -589,20 +591,20 @@ final class FileRefGenerator
                 continue;
             }
             $type = $TL->tl->getConstructors()->findByPredicate($constructor)['type'];
-            $stack = [[$constructor, 'file_reference']];
+            $stack = [[$constructor, 'file_reference', 0, false]];
             $stackTypes = [$type => 1];
 
             $outgoingTraversalPairs = [];
             $recurse(
                 static function (array $stack) use (&$outgoingTraversalPairs): void {
                     foreach ($stack as $pair) {
-                        $encoded = json_encode($pair);
+                        if ($pair[1] === 'file_reference') {
+                            continue;
+                        }
+                        $pairTraverse = Path::arrayPathToTraversePath($pair);
+                        $encoded = json_encode($pairTraverse);
                         if (!isset($outgoingTraversalPairs[$encoded])) {
-                            $outgoingTraversalPairs[$encoded] = Path::arrayPathToConstructorPath(
-                                -1,
-                                $pair,
-                                -1,
-                            );
+                            $outgoingTraversalPairs[$encoded] = $pairTraverse;
                         }
                     }
                 },
@@ -621,7 +623,7 @@ final class FileRefGenerator
         $tmp = new Ast(blacklistedPredicates: $blacklistedPredicates, allowUnpacking: true, outputSchema: $pre);
         foreach ($incomingCons as $constructor => $_) {
             $type = ucfirst($constructor);
-            $stack = [[$constructor, 'file_reference']];
+            $stack = [[$constructor, 'file_reference', 0, false]];
             $stackTypes = [$type => 1];
 
             $incomingTraversalPairs = [];
@@ -636,13 +638,13 @@ final class FileRefGenerator
                     $top = end($stack)[0];
                     for ($x = \count($stack)-1; $x >= 0; $x--) {
                         $pair = $stack[$x];
-                        $encoded = json_encode($pair);
-                        if (!isset($tmpPairs[$encoded])) {
-                            $tmpPairs[$encoded] = Path::arrayPathToConstructorPath(
-                                -1,
-                                $pair,
-                                -1,
-                            );
+
+                        if ($pair[1] !== 'file_reference') {
+                            $pairTraverse = Path::arrayPathToTraversePath($pair);
+                            $encoded = json_encode($pairTraverse);
+                            if (!isset($tmpPairs[$encoded])) {
+                                $tmpPairs[$encoded] = $pairTraverse;
+                            }
                         }
 
                         foreach ($locations[$pair[0]] ?? [] as $op) {

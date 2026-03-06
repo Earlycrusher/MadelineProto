@@ -78,6 +78,7 @@ final class Ast implements BuildMode
                 //'id_field' => $id,
                 //'file_reference_field' => $fileref,
                 'stored_constructor' => $cons,
+                'traverse' => $outgoingTraversalPairs[$predicate],
             ];
         }
         foreach ($incomingCons as $predicate => [$cons]) {
@@ -88,6 +89,7 @@ final class Ast implements BuildMode
                 //'id_field' => $id,
                 //'file_reference_field' => $fileref,
                 'stored_constructor' => $cons,
+                'traverse' => $incomingTraversalPairs[$predicate],
             ];
         }
         $dbSchema = "boolFalse#bc799737 = Bool;\nboolTrue#997275b5 = Bool;\ntrue#3fedd339 = True;\nvector#1cb5c415 {t:Type} # [ t ] = Vector t;\n\n";
@@ -135,7 +137,8 @@ final class Ast implements BuildMode
 
         $serialized = $TL->serializeObject(['type' => 'FileReferenceMap'], $value, '');
         $valueDe = $TL->deserialize($serialized, ['type' => '', 'connection' => null, 'encrypted' => true]);
-        Assert::true($value == $valueDe);
+        var_dump($valueDe['locations']);
+        Assert::true($value == $valueDe, "Deserialized value does not match original value");
         file_put_contents($refMapFile, $serialized);
         file_put_contents($refMapFileJson, json_encode($valueDe, flags: JSON_THROW_ON_ERROR));
     }
