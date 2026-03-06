@@ -87,46 +87,57 @@ final readonly class Path
         );
     }
 
+    public static function arrayPathToConstructorPath(int $k, array $part, int $finalK, ?TLContext $tl = null): array
+    {
+        $newPart = [
+            '_' => 'pathPart',
+            'constructor' => $part[0],
+            'param' => $part[1],
+            'flag' => ['_' => 'paramNotFlag'],
+        ];
+        if (isset($part[2])) {
+            if ($part[2] instanceof TypedOp) {
+                if ($tl === null) {
+                    throw new \InvalidArgumentException('Cannot use TypedOp as fallback in this context');
+                }
+                $fallback = $part[2]->build($tl);
+                array_walk_recursive($fallback, static function ($v): void {
+                    if (\is_array($v)
+                        && isset($v['_'])
+                        && \in_array($v['_'], ['copyOp', 'getInputChannelByIdOp', 'getInputUserByIdOp', 'getInputPeerByIdOp'], true)
+                    ) {
+                        throw new \InvalidArgumentException("Cannot use {$v['_']} as fallback in TypedOp");
+                    }
+                });
+                $newPart['flag'] = ['_' => 'paramIsFlagFallback', 'fallback' => $fallback];
+            } elseif (\is_int($part[2])) {
+                if ($part[2] & self::FLAG_UNPACK_ARRAY) {
+                    if ($tl && $tl->buildMode instanceof Ast && !$tl->buildMode->allowUnpacking) {
+                        throw new AssertionError('Cannot use unpack_array flag in Ast mode with backrefs enabled');
+                    }
+                    $newPart['unpack_vector'] = true;
+                }
+                if ($part[2] & self::FLAG_IF_ABSENT_ABORT) {
+                    $newPart['flag'] = ['_' => 'paramIsFlagAbortIfEmpty'];
+                }
+                if ($part[2] & self::FLAG_PASSTHROUGH) {
+                    Assert::eq($k, $finalK, 'Can only use passthrough flag on last element');
+                    $newPart['flag'] = ['_' => 'paramIsFlagPassthrough'];
+                }
+            }
+        }
+        return $newPart;
+    }
     public function buildPath(TLContext $tl, string $extractor): string
     {
         $new = [];
+        $finalK = \count($this->path) - 1;
         foreach ($this->path as $k => $part) {
-            $newPart = [
-                '_' => 'pathPart',
-                'constructor' => $part[0],
-                'param' => $part[1],
-                'flag' => ['_' => 'paramNotFlag'],
-            ];
-            if (isset($part[2])) {
-                if ($part[2] instanceof TypedOp) {
-                    $fallback = $part[2]->build($tl);
-                    array_walk_recursive($fallback, static function ($v): void {
-                        if (\is_array($v)
-                            && isset($v['_'])
-                            && \in_array($v['_'], ['copyOp', 'getInputChannelByIdOp', 'getInputUserByIdOp', 'getInputPeerByIdOp'], true)
-                        ) {
-                            throw new \InvalidArgumentException("Cannot use {$v['_']} as fallback in TypedOp");
-                        }
-                    });
-                    $newPart['flag'] = ['_' => 'paramIsFlagFallback', 'fallback' => $fallback];
-                } elseif (\is_int($part[2])) {
-                    if ($part[2] & self::FLAG_UNPACK_ARRAY) {
-                        if ($tl->buildMode instanceof Ast && !$tl->buildMode->allowUnpacking) {
-                            throw new AssertionError('Cannot use unpack_array flag in Ast mode with backrefs enabled');
-                        }
-                        $newPart['unpack_vector'] = true;
-                    }
-                    if ($part[2] & self::FLAG_IF_ABSENT_ABORT) {
-                        $newPart['flag'] = ['_' => 'paramIsFlagAbortIfEmpty'];
-                    }
-                    if ($part[2] & self::FLAG_PASSTHROUGH) {
-                        Assert::eq($k, \count($this->path) - 1, 'Can only use passthrough flag on last element');
-                        $newPart['flag'] = ['_' => 'paramIsFlagPassthrough'];
-                    }
-                }
-            }
-            $new[] = $newPart;
+            $newPart = self::arrayPathToConstructorPath($k, $part, $finalK, $tl);
+            $new []= $newPart;
         }
+        $newPart = end($new);
+
         $serialized = json_encode([$extractor, $this->isFromParent, $new], flags: JSON_THROW_ON_ERROR);
         if (isset($tl->buildMode->storedByPath[$serialized])) {
             $name = $tl->buildMode->storedByPath[$serialized];

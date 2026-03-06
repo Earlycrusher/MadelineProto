@@ -598,7 +598,11 @@ final class FileRefGenerator
                     foreach ($stack as $pair) {
                         $encoded = json_encode($pair);
                         if (!isset($outgoingTraversalPairs[$encoded])) {
-                            $outgoingTraversalPairs[$encoded] = $pair;
+                            $outgoingTraversalPairs[$encoded] = Path::arrayPathToConstructorPath(
+                                -1,
+                                $pair,
+                                -1,
+                            );
                         }
                     }
                 },
@@ -634,7 +638,11 @@ final class FileRefGenerator
                         $pair = $stack[$x];
                         $encoded = json_encode($pair);
                         if (!isset($tmpPairs[$encoded])) {
-                            $tmpPairs[$encoded] = $pair;
+                            $tmpPairs[$encoded] = Path::arrayPathToConstructorPath(
+                                -1,
+                                $pair,
+                                -1,
+                            );
                         }
 
                         foreach ($locations[$pair[0]] ?? [] as $op) {
