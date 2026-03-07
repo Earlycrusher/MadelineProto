@@ -18,8 +18,8 @@ source#dd27c696 flags:# predicate:string is_constructor:flags.0?true stored_cons
 
 // Traversers (outgoing)
 traverseOutgoingConstructor#3fc5026d type:string predicate:string params:Vector<TraverseParam> = TraverserOutgoing;
-traverseMethodCall#9244f5bb name:string params:Vector<TraverseParam> = TraverserOutgoing;
 traverseSwapLocation#032bf95d type:string predicate:string stored_constructor:string = TraverserOutgoing;
+traverseMethodCall#9244f5bb name:string params:Vector<TraverseParam> = TraverserOutgoing;
 
 // Skipped sources
 skippedSource#1d53cd15 flags:# predicate:string is_constructor:flags.0?true why:string = SkippedSource;

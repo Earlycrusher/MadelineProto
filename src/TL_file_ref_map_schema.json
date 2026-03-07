@@ -214,21 +214,6 @@
             "type": "TraverserOutgoing"
         },
         {
-            "id": "-1840974405",
-            "predicate": "traverseMethodCall",
-            "params": [
-                {
-                    "name": "name",
-                    "type": "string"
-                },
-                {
-                    "name": "params",
-                    "type": "Vector<TraverseParam>"
-                }
-            ],
-            "type": "TraverserOutgoing"
-        },
-        {
             "id": "53213533",
             "predicate": "traverseSwapLocation",
             "params": [
@@ -243,6 +228,21 @@
                 {
                     "name": "stored_constructor",
                     "type": "string"
+                }
+            ],
+            "type": "TraverserOutgoing"
+        },
+        {
+            "id": "-1840974405",
+            "predicate": "traverseMethodCall",
+            "params": [
+                {
+                    "name": "name",
+                    "type": "string"
+                },
+                {
+                    "name": "params",
+                    "type": "Vector<TraverseParam>"
                 }
             ],
             "type": "TraverserOutgoing"
