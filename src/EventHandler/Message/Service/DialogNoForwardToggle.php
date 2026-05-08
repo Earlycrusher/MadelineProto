@@ -19,6 +19,9 @@ namespace danog\MadelineProto\EventHandler\Message\Service;
 use danog\MadelineProto\EventHandler\Message\ServiceMessage;
 use danog\MadelineProto\MTProto;
 
+/**
+ * Emitted only in private chats when enabling or disabling content protection ».
+ */
 class DialogNoForwardToggle extends ServiceMessage
 {
     public function __construct(
@@ -26,11 +29,11 @@ class DialogNoForwardToggle extends ServiceMessage
         array $rawMessage,
         array $info,
 
-        /** @var bool previous vale */
-        public readonly bool $prevValue,
+        /** @var bool Previous protection status (if true, the chat was protected). May be equal to new_value when replying to requests */
+        public readonly bool $prev,
 
-        /** @var bool new vale */
-        public readonly bool $newValue
+        /** @var bool New protection status. */
+        public readonly bool $new
     ) {
         parent::__construct($API, $rawMessage, $info);
     }

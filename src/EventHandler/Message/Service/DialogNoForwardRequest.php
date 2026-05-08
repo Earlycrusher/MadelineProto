@@ -19,6 +19,9 @@ namespace danog\MadelineProto\EventHandler\Message\Service;
 use danog\MadelineProto\EventHandler\Message\ServiceMessage;
 use danog\MadelineProto\MTProto;
 
+/**
+ * Emitted only in private chats if the other side requested to disable content protection ».
+ */
 class DialogNoForwardRequest extends ServiceMessage
 {
     public function __construct(
@@ -26,14 +29,14 @@ class DialogNoForwardRequest extends ServiceMessage
         array $rawMessage,
         array $info,
 
-        /** @var bool Request is expired or not. */
+        /** @var bool If set, this request was accepted or rejected by the other user and thus cannot be used anymore. */
         public readonly bool $expired,
 
-        /** @var bool previous vale */
-        public readonly bool $prevValue,
+        /** @var bool Previous protection status. */
+        public readonly bool $prev,
 
-        /** @var bool new vale */
-        public readonly bool $newValue
+        /** @var bool New requested protection status. */
+        public readonly bool $new
     ) {
         parent::__construct($API, $rawMessage, $info);
     }
