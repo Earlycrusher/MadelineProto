@@ -6876,9 +6876,11 @@
       <code><![CDATA[$button['copy_text']]]></code>
       <code><![CDATA[$button['copy_text']['text']]]></code>
       <code><![CDATA[$button['forward_text']]]></code>
+      <code><![CDATA[$button['icon_custom_emoji_id']]]></code>
       <code><![CDATA[$button['login_url']]]></code>
       <code><![CDATA[$button['query']]]></code>
       <code><![CDATA[$button['request_write_access']]]></code>
+      <code><![CDATA[$button['style']]]></code>
       <code><![CDATA[$button['switch_inline_query']]]></code>
       <code><![CDATA[$button['switch_inline_query_current_chat']]]></code>
       <code><![CDATA[$button['text']]]></code>
@@ -6975,6 +6977,7 @@
       <code><![CDATA[$newrows[$key]['buttons'][$button_key]['query']]]></code>
       <code><![CDATA[$newrows[$key]['buttons'][$button_key]['query']]]></code>
       <code><![CDATA[$newrows[$key]['buttons'][$button_key]['request_write_access']]]></code>
+      <code><![CDATA[$newrows[$key]['buttons'][$button_key]['style']['icon']]]></code>
       <code><![CDATA[$newrows[$key]['buttons'][$button_key]['text']]]></code>
       <code><![CDATA[$newrows[$key]['buttons'][$button_key]['url']]]></code>
       <code><![CDATA[$newrows[$key]['buttons'][$button_key]['url']]]></code>
